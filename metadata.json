@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Fechamento Anual - Barbearia BI",
+  "description": "Dashboard de inteligência anual para gestão estratégica de barbearias.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}

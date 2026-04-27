@@ -1,0 +1,18 @@
+
+{
+  "name": "BarberPro BI",
+  "short_name": "BarberBI",
+  "description": "Gestão Estratégica para Barbearias",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2554/2554042.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

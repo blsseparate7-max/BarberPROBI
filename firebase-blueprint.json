@@ -1,0 +1,133 @@
+{
+  "entities": {
+    "Profissional": {
+      "title": "Profissional",
+      "description": "Cadastro de profissionais da barbearia",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "cargo": { "type": "string" },
+        "cadeira": { "type": "number" },
+        "comissao": { "type": "number" },
+        "ativo": { "type": "boolean" },
+        "metaMensal": { "type": "number" },
+        "metaAnual": { "type": "number" },
+        "perfil": {
+          "type": "object",
+          "properties": {
+            "experiencia": { "type": "string" },
+            "perfilComportamental": { "type": "string" },
+            "especialidade": { "type": "string" },
+            "objetivo": { "type": "string" }
+          }
+        }
+      },
+      "required": ["id", "nome", "cadeira", "comissao", "ativo"]
+    },
+    "ProducaoMensal": {
+      "title": "Produção Mensal",
+      "description": "Dados de produção mensal de um profissional",
+      "type": "object",
+      "properties": {
+        "ano": { "type": "number" },
+        "mes": { "type": "number" },
+        "profissionalId": { "type": "string" },
+        "producaoBruta": { "type": "number" },
+        "repasseProfissional": { "type": "number" },
+        "repasseAssinatura": { "type": "number" },
+        "recebidoPelaCasa": { "type": "number" },
+        "vendasProdutos": { "type": "number" },
+        "vendasProdutosComissao": { "type": "number" },
+        "quantidadeAtendimentos": { "type": "number" },
+        "atendimentosAssinatura": { "type": "number" }
+      },
+      "required": ["ano", "mes", "profissionalId", "producaoBruta"]
+    },
+    "ReceitasExtras": {
+      "title": "Receitas Extras",
+      "description": "Outros tipos de receitas mensais",
+      "type": "object",
+      "properties": {
+        "ano": { "type": "number" },
+        "mes": { "type": "number" },
+        "dinheiro": { "type": "number" },
+        "cartao": { "type": "number" },
+        "pix": { "type": "number" },
+        "assinaturas": { "type": "number" },
+        "pacotes": { "type": "number" },
+        "geladeira": { "type": "number" },
+        "outras": { "type": "number" },
+        "novosAssinantes": { "type": "number" },
+        "cancelamentosAssinantes": { "type": "number" }
+      },
+      "required": ["ano", "mes"]
+    },
+    "GastoMensal": {
+      "title": "Gasto Mensal",
+      "description": "Despesas mensais classificadas",
+      "type": "object",
+      "properties": {
+        "ano": { "type": "number" },
+        "mes": { "type": "number" },
+        "categoria": { "type": "string" },
+        "valor": { "type": "number" }
+      },
+      "required": ["ano", "mes", "categoria", "valor"]
+    },
+    "ParametrosAnuais": {
+      "title": "Parâmetros Anuais",
+      "description": "Metas e configurações financeiras anuais",
+      "type": "object",
+      "properties": {
+        "ano": { "type": "number" },
+        "metaFaturamento": { "type": "number" },
+        "metaLucro": { "type": "number" },
+        "metaAssinaturas": { "type": "number" },
+        "metaGeladeira": { "type": "number" },
+        "metaGastos": { "type": "number" },
+        "metaPorCadeira": { "type": "number" }
+      },
+      "required": ["ano"]
+    },
+    "MeetingNote": {
+      "title": "Nota de Reunião",
+      "description": "Feedback e anotações de reuniões",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "profissionalId": { "type": "string" },
+        "ano": { "type": "number" },
+        "data": { "type": "string" },
+        "texto": { "type": "string" }
+      },
+      "required": ["id", "profissionalId", "ano", "data", "texto"]
+    }
+  },
+  "firestore": {
+    "users/{userId}/profissionais": {
+      "schema": "Profissional",
+      "description": "Coleção de profissionais por usuário"
+    },
+    "users/{userId}/producao_mensal": {
+      "schema": "ProducaoMensal",
+      "description": "Coleção de produção mensal por usuário"
+    },
+    "users/{userId}/receitas_extras_mensal": {
+      "schema": "ReceitasExtras",
+      "description": "Coleção de receitas extras por usuário"
+    },
+    "users/{userId}/gastos_mensal": {
+      "schema": "GastoMensal",
+      "description": "Coleção de gastos mensais por usuário"
+    },
+    "users/{userId}/metas": {
+      "schema": "ParametrosAnuais",
+      "description": "Coleção de metas anuais por usuário"
+    },
+    "users/{userId}/feedbacks_reuniao": {
+      "schema": "MeetingNote",
+      "description": "Coleção de notas de reunião por usuário"
+    }
+  }
+}

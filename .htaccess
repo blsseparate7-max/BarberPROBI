@@ -1,0 +1,12 @@
+
+# Configuração para XAMPP/Apache
+<IfModule mod_mime.c>
+  AddType application/javascript .ts
+  AddType application/javascript .tsx
+</IfModule>
+
+# Remove cache para desenvolvimento (evita que versões antigas causem erro 404)
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresDefault "access plus 0 seconds"
+</IfModule>
