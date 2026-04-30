@@ -1,6 +1,6 @@
 {
-  "name": "Remix: Fechamento Anual - Barbearia BI",
-  "description": "Dashboard de inteligência anual para gestão estratégica de barbearias.",
+  "name": "BarberPro BI - Inteligência Estratégica",
+  "description": "Dashboard de inteligência anual para gestão estratégica de barbearias com sincronização em nuvem.",
   "requestFramePermissions": [
     "camera"
   ],

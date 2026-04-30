@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import { AppData, MeetingNote } from '../types.ts';
-import { GoogleGenAI } from "@google/genai";
+import { AppData, MeetingNote } from '../types';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { 
   MessageSquare, 
   BrainCircuit, 
@@ -27,7 +27,7 @@ import {
 
 interface MeetingsProps {
   data: AppData;
-  setData: (data: AppData) => void;
+  setData: (newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => void;
   year: number;
 }
 
@@ -133,20 +133,26 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
       data: new Date().toISOString(),
       texto: isWeekly ? `[ANÁLISE DA SEMANA] ${text}` : text
     };
-    setData({ ...data, meetingNotes: [...(data.meetingNotes || []), note] });
+    setData(prev => ({ 
+      ...prev, 
+      meetingNotes: [...(prev.meetingNotes || []), note] 
+    }), { type: 'note', payload: note });
     if (isWeekly) setWeeklyNote(''); else setNewNote('');
   };
 
   const handleDeleteNote = (id: string) => {
     if (confirm("Deseja remover esta nota de reunião?")) {
-      setData({ ...data, meetingNotes: data.meetingNotes.filter(n => n.id !== id) });
+      setData(prev => ({ 
+        ...prev, 
+        meetingNotes: (prev.meetingNotes || []).filter(n => n.id !== id) 
+      }), { type: 'delete_note', payload: id });
     }
   };
 
   const handleGenerateScript = async () => {
     setIsGenerating(true);
     setAiScript('');
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenerativeAI(process.env.API_KEY || '');
     
     // Absorvendo as notas semanais/registros para o prompt
     const notesText = notes.map(n => `- ${n.texto}`).join('\n');
@@ -195,7 +201,7 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
   const handleGenerateGeneralAgenda = async () => {
     setIsGenerating(true);
     setGeneralAiScript('');
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenerativeAI(process.env.API_KEY || '');
 
     // Agrupar notas por profissional para o prompt
     const notesSummary = data.profissionais.map(p => {

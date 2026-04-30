@@ -6,42 +6,72 @@ import App from './App.tsx';
 /**
  * GBCortes7 - Bootstrap Seguro
  */
+console.log("Bootstrap: index.tsx carregado e avaliado.");
+
+(window as any).APP_HEARTBEAT = Date.now();
+
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("ErrorBoundary caught error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', color: 'red', backgroundColor: '#fff', minHeight: '100vh' }}>
+          <h2>Erro no Frontend</h2>
+          <pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error?.toString()}</pre>
+          <button onClick={() => window.location.reload()}>Recarregar App</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const initApp = () => {
-  try {
-    const container = document.getElementById('root');
-    if (!container) return;
-
-    // Se já estiver renderizado, não faz nada
-    if (container.hasChildNodes()) return;
-
-    const root = createRoot(container);
-    root.render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    );
+    console.log("Bootstrap: Iniciando em", new Date().toISOString());
+    try {
+      const container = document.getElementById('root');
+      if (!container) {
+        throw new Error("Elemento root não encontrado");
+      }
+  
+      console.log("Bootstrap: Container root encontrado. Configurando React...");
+      const root = createRoot(container);
+      
+      console.log("Bootstrap: Renderizando componente principal <App />");
+      root.render(
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+      );
     
-    // Suaviza a saída da tela de carregamento
+    (window as any).__APP_STARTED__ = true;
+    console.log("Bootstrap: Renderização disparada com sucesso.");
+
+    // Remove boot screen gracefully
     const bootScreen = document.getElementById('boot-screen');
     if (bootScreen) {
+      console.log("Bootstrap: Removendo tela de boot em 500ms");
       bootScreen.style.opacity = '0';
       setTimeout(() => {
-        const el = document.getElementById('boot-screen');
-        if (el) el.remove();
+        bootScreen.remove();
+        console.log("Bootstrap: Tela de boot removida.");
       }, 500);
     }
-    
-    console.log("GBCortes7: Interface carregada.");
   } catch (err) {
-    console.error("Erro na renderização:", err);
+    console.error("Bootstrap: Erro fatal detectado:", err);
     const status = document.getElementById('boot-status');
-    if (status) status.innerText = "Erro ao renderizar dashboard.";
+    if (status) status.innerText = "Erro Crítico no Bootstrap. Verifique o console.";
   }
 };
 
-// Inicialização imediata ou após o DOM estar pronto
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
-} else {
-  initApp();
-}
+// Executa imediatamente
+initApp();

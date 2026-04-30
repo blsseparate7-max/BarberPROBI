@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { auth } from '../services/firebase.ts';
+import { auth } from '../services/firebase';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -7,7 +7,7 @@ import {
   AuthError
 } from 'firebase/auth';
 import { LogIn, UserPlus, LogOut, ShieldCheck, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface AuthProps {
   onSuccess?: () => void;
@@ -25,16 +25,25 @@ export const Login: React.FC<AuthProps> = ({ onSuccess }) => {
     setLoading(true);
     setError(null);
 
+    if (!auth) {
+      setError("O sistema de autenticação não foi inicializado corretamente. Verifique as configurações do Firebase.");
+      setLoading(false);
+      return;
+    }
+
     try {
+      console.log(`Auth: Tentando ${isLogin ? 'Login' : 'Cadastro'} para ${email}`);
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
+        console.log("Auth: Login bem-sucedido!");
       } else {
         await createUserWithEmailAndPassword(auth, email, password);
+        console.log("Auth: Cadastro bem-sucedido!");
       }
       onSuccess?.();
     } catch (err) {
+      console.error('Auth Error:', err);
       const authError = err as AuthError;
-      console.error('Auth Error:', authError.code);
       switch (authError.code) {
         case 'auth/invalid-credential':
           setError('E-mail ou senha incorretos.');
@@ -158,9 +167,25 @@ export const Login: React.FC<AuthProps> = ({ onSuccess }) => {
 };
 
 export const LogoutButton: React.FC<{ expanded?: boolean }> = ({ expanded = false }) => {
-  const handleLogout = () => {
-    if (confirm('Deseja realmente sair do sistema?')) {
-      signOut(auth);
+  const handleLogout = async () => {
+    try {
+      console.log("Auth: Tentando deslogar...");
+      if (!auth) {
+        console.error("Auth: Objeto auth não encontrado.");
+        window.location.href = '/';
+        return;
+      }
+      await signOut(auth);
+      console.log("Auth: Deslogado com sucesso.");
+      
+      // Limpeza agressiva para garantir reinício total
+      localStorage.clear(); 
+      sessionStorage.clear();
+      window.location.replace('/');
+    } catch (error) {
+      console.error("Auth: Erro ao deslogar:", error);
+      // Fallback em caso de erro no SDK
+      window.location.replace('/');
     }
   };
 

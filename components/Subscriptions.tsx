@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { AppData } from '../types.ts';
+import { AppData } from '../types';
 import { UserCheck, UserMinus, TrendingUp, DollarSign, Activity, BrainCircuit, Sparkles } from 'lucide-react';
 
 interface SubscriptionsProps {

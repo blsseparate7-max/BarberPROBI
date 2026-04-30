@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { TransactionType, Profissional } from '../types.ts';
-import { CATEGORIES } from '../constants.tsx';
+import { TransactionType, Profissional } from '../types';
+import { CATEGORIES } from '../constants';
 
 interface TransactionFormProps {
   collaborators: Profissional[];

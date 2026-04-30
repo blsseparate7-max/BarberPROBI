@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { AppData, Profissional, ProfissionalPerfil } from '../types.ts';
+import { AppData, Profissional, ProfissionalPerfil } from '../types';
 import { Plus, Trash2, X, Edit3, Scissors, UserPlus, Save, Target, UserMinus, UserCheck, UserX, Briefcase } from 'lucide-react';
 
 interface ProfessionalsProps {
@@ -115,14 +115,15 @@ const Professionals: React.FC<ProfessionalsProps> = ({ data, setData, year }) =>
       setData(prev => ({ 
         ...prev, 
         profissionais: [...prev.profissionais, nProf] 
-      }));
+      }), { type: 'profissional', payload: nProf });
     } else if (modalMode === 'edit' && editingId) {
+      const updatedProf = { ...formProf, id: editingId, perfil: formPerfil };
       setData(prev => ({
         ...prev,
         profissionais: prev.profissionais.map(p => 
-          p.id === editingId ? { ...p, ...formProf, perfil: formPerfil } : p
+          p.id === editingId ? updatedProf : p
         )
-      }));
+      }), { type: 'profissional', payload: updatedProf });
     }
     setModalMode(null);
   };
@@ -132,7 +133,7 @@ const Professionals: React.FC<ProfessionalsProps> = ({ data, setData, year }) =>
       setData(prev => ({
         ...prev,
         profissionais: prev.profissionais.filter(p => p.id !== id)
-      }));
+      }), { type: 'delete_profissional', payload: id });
     }
   };
 
@@ -142,12 +143,16 @@ const Professionals: React.FC<ProfessionalsProps> = ({ data, setData, year }) =>
       : "Deseja REATIVAR este profissional? Ele voltará para a equipe ativa e poderá receber novos lançamentos.";
 
     if (window.confirm(msg)) {
-      setData(prev => ({
-        ...prev,
-        profissionais: prev.profissionais.map(p => 
-          p.id === id ? { ...p, ativo: !isCurrentlyAtivo } : p
-        )
-      }));
+      const p = data.profissionais.find(x => x.id === id);
+      if (p) {
+        const updated = { ...p, ativo: !isCurrentlyAtivo };
+        setData(prev => ({
+          ...prev,
+          profissionais: prev.profissionais.map(x => 
+            x.id === id ? updated : x
+          )
+        }), { type: 'profissional', payload: updated });
+      }
     }
   };
 

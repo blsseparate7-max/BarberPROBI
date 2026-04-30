@@ -16,7 +16,8 @@ import {
   ReceitasExtras, 
   GastoMensal, 
   ParametrosAnuais, 
-  MeetingNote 
+  MeetingNote,
+  PlanningData
 } from '../types.ts';
 
 enum OperationType {
@@ -156,6 +157,46 @@ export const deleteMeetingNote = async (id: string) => {
   }
 };
 
+// --- Full Monthly Closing ---
+export const saveFechamentoMes = async (payload: { extra: ReceitasExtras, producao: ProducaoMensal[], gastos: GastoMensal[] }) => {
+  const userId = getUserId();
+  const batch = writeBatch(db);
+
+  // Extra
+  const extraId = `${payload.extra.ano}_${payload.extra.mes}`;
+  batch.set(doc(db, `users/${userId}/receitas_extras_mensal`, extraId), payload.extra);
+
+  // Producao
+  payload.producao.forEach(p => {
+    const id = `${p.ano}_${p.mes}_${p.profissionalId}`;
+    batch.set(doc(db, `users/${userId}/producao_mensal`, id), p);
+  });
+
+  // Gastos
+  payload.gastos.forEach(g => {
+    const id = `${g.ano}_${g.mes}_${g.categoria.replace(/\//g, '_')}`;
+    batch.set(doc(db, `users/${userId}/gastos_mensal`, id), g);
+  });
+
+  try {
+    await batch.commit();
+    console.log("dataService: Fechamento mensal salvo com sucesso via batch.");
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `users/${userId}/fechamento_mes (batch)`);
+  }
+};
+
+// --- Planning Data ---
+export const savePlanning = async (p: PlanningData) => {
+  const path = `users/${getUserId()}/planejamento`;
+  const id = `${p.ano}_${p.mes}`;
+  try {
+    await setDoc(doc(db, path, id), { ...p, lastUpdated: new Date().toISOString() });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `${path}/${id}`);
+  }
+};
+
 // --- Load all data ---
 export const loadAppData = async (): Promise<Partial<AppData>> => {
   const userId = getUserId();
@@ -165,39 +206,45 @@ export const loadAppData = async (): Promise<Partial<AppData>> => {
     receitasExtras: [],
     gastos: [],
     parametros: [],
-    meetingNotes: []
+    meetingNotes: [],
+    planejamento: []
   };
 
-  try {
-    // Profissionais
-    const profs = await getDocs(collection(db, `users/${userId}/profissionais`));
-    data.profissionais = profs.docs.map(d => d.data() as Profissional);
+  const collections = [
+    { key: 'profissionais', path: `users/${userId}/profissionais` },
+    { key: 'producao', path: `users/${userId}/producao_mensal` },
+    { key: 'receitasExtras', path: `users/${userId}/receitas_extras_mensal` },
+    { key: 'gastos', path: `users/${userId}/gastos_mensal` },
+    { key: 'parametros', path: `users/${userId}/metas` },
+    { key: 'meetingNotes', path: `users/${userId}/feedbacks_reuniao` },
+    { key: 'planejamento', path: `users/${userId}/planejamento` }
+  ];
 
-    // Produção
-    const prod = await getDocs(collection(db, `users/${userId}/producao_mensal`));
-    data.producao = prod.docs.map(d => d.data() as ProducaoMensal);
+  console.log("dataService: Iniciando carregamento paralelo das coleções para", userId);
 
-    // Receitas
-    const recs = await getDocs(collection(db, `users/${userId}/receitas_extras_mensal`));
-    data.receitasExtras = recs.docs.map(d => d.data() as ReceitasExtras);
+  const results = await Promise.allSettled(
+    collections.map(async (c) => {
+      try {
+        const snap = await getDocs(collection(db, c.path));
+        return { key: c.key, docs: snap.docs.map(d => d.data()) };
+      } catch (err) {
+        console.error(`Erro ao carregar coleção ${c.path}:`, err);
+        throw err;
+      }
+    })
+  );
 
-    // Gastos
-    const gastos = await getDocs(collection(db, `users/${userId}/gastos_mensal`));
-    data.gastos = gastos.docs.map(d => d.data() as GastoMensal);
+  results.forEach((res) => {
+    if (res.status === 'fulfilled') {
+      (data as any)[res.value.key] = res.value.docs;
+    }
+  });
 
-    // Metas
-    const metas = await getDocs(collection(db, `users/${userId}/metas`));
-    data.parametros = metas.docs.map(d => d.data() as ParametrosAnuais);
+  console.log("dataService: Carregamento finalizado. Status das coleções:", 
+    results.map((r, i) => `${collections[i].key}: ${r.status}`)
+  );
 
-    // Notes
-    const notes = await getDocs(collection(db, `users/${userId}/feedbacks_reuniao`));
-    data.meetingNotes = notes.docs.map(d => d.data() as MeetingNote);
-
-    return data;
-  } catch (err) {
-    handleFirestoreError(err, OperationType.LIST, `users/${userId}`);
-    return {};
-  }
+  return data;
 };
 
 // --- Migration ---
@@ -241,6 +288,14 @@ export const migrateToCloud = async (localData: AppData) => {
   localData.meetingNotes.forEach(n => {
     batch.set(getDocRef('feedbacks_reuniao', n.id), n);
   });
+
+  // Planning
+  if (localData.planejamento) {
+    localData.planejamento.forEach(p => {
+      const id = `${p.ano}_${p.mes}`;
+      batch.set(getDocRef('planejamento', id), p);
+    });
+  }
 
   try {
     await batch.commit();

@@ -86,6 +86,13 @@ export interface GastoMensal {
   valor: number;
 }
 
+export interface PlanningData {
+  ano: number;
+  mes: number;
+  lastUpdated?: string;
+  analiseIA?: string;
+}
+
 export interface AppData {
   parametros: ParametrosAnuais[];
   profissionais: Profissional[];
@@ -94,4 +101,5 @@ export interface AppData {
   gastos: GastoMensal[];
   meetingNotes: MeetingNote[];
   categoriasGastos: string[];
+  planejamento: PlanningData[];
 }

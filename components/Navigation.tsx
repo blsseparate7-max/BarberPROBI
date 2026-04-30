@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, Users, Repeat, Settings, MessageSquareQuote, UserCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Repeat, Settings, MessageSquareQuote, UserCheck, TrendingUp } from 'lucide-react';
 
 interface NavigationProps {
   activeTab: string;
@@ -12,6 +12,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
     { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
     { id: 'professionals', label: 'Equipe', icon: Users },
     { id: 'fluxo', label: 'Fluxo', icon: Repeat },
+    { id: 'planejamento', label: 'Plano', icon: TrendingUp },
     { id: 'assinaturas', label: 'Assinantes', icon: UserCheck },
     { id: 'reuniao', label: 'Reunião', icon: MessageSquareQuote },
     { id: 'config', label: 'Ajustes', icon: Settings },

@@ -1,11 +1,11 @@
 
 import React, { useState, useRef, useMemo } from 'react';
-import { AppData, ParametrosAnuais } from '../types.ts';
+import { AppData, ParametrosAnuais } from '../types';
 import { CalendarPlus, Save, Trash2, Download, Upload, ShieldCheck, Plus, X, CheckCircle2, ArrowRightLeft, TrendingUp, TrendingDown, Database, ClipboardList, RefreshCw } from 'lucide-react';
 
 interface ConfigProps {
   data: AppData;
-  setData: (data: AppData) => void;
+  setData: (newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => void;
   selectedYear: number;
   setSelectedYear: (year: number) => void;
 }
@@ -68,7 +68,10 @@ const Config: React.FC<ConfigProps> = ({ data, setData, selectedYear, setSelecte
     // Como os dados de produção/gastos já são armazenados com o campo 'ano', 
     // criar o novo parâmetro é suficiente, pois as listas de dados do novo ano estarão vazias inicialmente.
     
-    setData({ ...data, parametros: [...data.parametros, newYearForm] });
+    setData(prev => ({ 
+      ...prev, 
+      parametros: [...prev.parametros, newYearForm] 
+    }), { type: 'parametro', payload: newYearForm });
     setSelectedYear(newYearForm.ano);
     setShowNewYearModal(false);
   };
@@ -76,8 +79,14 @@ const Config: React.FC<ConfigProps> = ({ data, setData, selectedYear, setSelecte
   const handleRemoveYear = (ano: number) => {
     if (data.parametros.length <= 1) return;
     if (confirm(`Excluir as configurações de ${ano}? Todas as produções e gastos deste ano serão mantidos mas o ciclo parametrizado será removido.`)) {
-      setData({ ...data, parametros: data.parametros.filter(p => p.ano !== ano) });
-      if (selectedYear === ano) setSelectedYear(data.parametros[0].ano);
+      setData(prev => ({ 
+        ...prev, 
+        parametros: prev.parametros.filter(p => p.ano !== ano) 
+      }));
+      if (selectedYear === ano) {
+        const remaining = data.parametros.filter(p => p.ano !== ano);
+        if (remaining.length > 0) setSelectedYear(remaining[0].ano);
+      }
     }
   };
 

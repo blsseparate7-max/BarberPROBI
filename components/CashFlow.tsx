@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { AppData, ProducaoMensal, ReceitasExtras, GastoMensal, ParametrosAnuais, Profissional } from '../types.ts';
+import { AppData, ProducaoMensal, ReceitasExtras, GastoMensal, ParametrosAnuais, Profissional } from '../types';
 import { PlusCircle, X, Save, Edit2, Eye, TrendingUp, UserCheck, Plus, ArrowDownRight, Scissors, Target, PieChart as PieChartIcon, Award, UserPlus, UserMinus, BarChart2, Wallet, Users, DollarSign, Star, Trophy, Sparkles, Settings2, Trash2, Check, CreditCard, Banknote, Smartphone, Gift, ArrowUpRight, Percent, ShoppingBag } from 'lucide-react';
 
 interface CashFlowProps {
   data: AppData;
-  setData: (data: AppData) => void;
+  setData: (newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => void;
   year: number;
 }
 
@@ -47,10 +47,13 @@ const CashFlow: React.FC<CashFlowProps> = ({ data, setData, year }) => {
   });
 
   const handleUpdateMetaAnual = (val: number) => {
-    const updatedParams = data.parametros.map(p => 
-      p.ano === year ? { ...p, metaFaturamento: val } : p
-    );
-    setData({ ...data, parametros: updatedParams });
+    const p = data.parametros.find(x => x.ano === year);
+    if (!p) return;
+    const updated = { ...p, metaFaturamento: val };
+    setData(prev => ({
+      ...prev,
+      parametros: prev.parametros.map(x => x.ano === year ? updated : x)
+    }), { type: 'parametro', payload: updated });
   };
 
   useEffect(() => {
@@ -204,11 +207,14 @@ const CashFlow: React.FC<CashFlowProps> = ({ data, setData, year }) => {
     }));
     const newGastos: GastoMensal[] = formData.gastos.map(g => ({ ano: year, mes: formData.mes, categoria: g.categoria, valor: g.valor }));
 
-    setData({
-      ...data,
-      receitasExtras: [...data.receitasExtras.filter(r => !(r.ano === year && r.mes === formData.mes)), newExtra],
-      producao: [...data.producao.filter(p => !(p.ano === year && p.mes === formData.mes)), ...newProducao],
-      gastos: [...data.gastos.filter(g => !(g.ano === year && g.mes === formData.mes)), ...newGastos]
+    setData(prev => ({
+      ...prev,
+      receitasExtras: [...prev.receitasExtras.filter(r => !(r.ano === year && r.mes === formData.mes)), newExtra],
+      producao: [...prev.producao.filter(p => !(p.ano === year && p.mes === formData.mes)), ...newProducao],
+      gastos: [...prev.gastos.filter(g => !(g.ano === year && g.mes === formData.mes)), ...newGastos]
+    }), { 
+      type: 'fechamento_mes', 
+      payload: { extra: newExtra, producao: newProducao, gastos: newGastos } 
     });
     setShowModal(false);
   };

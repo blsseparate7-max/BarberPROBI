@@ -1,23 +1,95 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GBCortes7 - BI Estratégico</title>
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#2563eb">
+    <title>BarberPro BI - Estratégico</title>
     
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
+    <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
-      body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; margin: 0; }
-      #root { min-height: 100vh; }
+      body { 
+        font-family: 'Plus Jakarta Sans', sans-serif; 
+        background-color: #f8fafc; 
+        margin: 0;
+        overflow-x: hidden;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #root { 
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      #boot-screen {
+        position: fixed; 
+        inset: 0; 
+        display: flex; 
+        flex-direction: column;
+        justify-content: center; 
+        align-items: center; 
+        background: #f8fafc; 
+        z-index: 1000;
+        transition: opacity 0.5s ease-out;
+      }
+      .loader { 
+        width: 48px; 
+        height: 48px; 
+        border: 5px solid #e2e8f0; 
+        border-top-color: #2563eb; 
+        border-radius: 50%; 
+        animation: spin 1s linear infinite; 
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .boot-text {
+        margin-top: 1.5rem;
+        color: #1e293b;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-size: 0.75rem;
+      }
     </style>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <div id="root">
+      <div style="display: flex; height: 100vh; align-items: center; justify-content: center; color: #64748b; font-family: sans-serif;">
+        <p>Carregando recursos do sistema...</p>
+      </div>
+    </div>
+    <div id="boot-screen">
+      <div class="loader"></div>
+      <p id="boot-status" class="boot-text">Iniciando BarberPRO BI</p>
+    </div>
+
+    <script>
+      // Early error tracking
+      window.onerror = function(msg, url, lineNo, columnNo, error) {
+        console.error("Global Error Caught:", msg, url, lineNo, columnNo, error);
+        const status = document.getElementById('boot-status');
+        if (status) {
+          status.innerText = "Erro no carregamento: " + msg;
+          status.style.color = "red";
+        }
+        return false;
+      };
+    </script>
+    <script type="module" src="./index.tsx"></script>
+    <script>
+      // Fallback: Se o app não iniciar em 5 segundos, removemos a tela de boot
+      // Isso garante que se houver um erro de carregamento do módulo ou erro fatal no React,
+      // o usuário veja pelo menos o que foi renderizado ou uma tela em branco (melhor que loader infinito)
+      setTimeout(() => {
+        const boot = document.getElementById('boot-screen');
+        if (boot && boot.style.opacity !== '0') {
+          console.warn("Bootstrap: Forçando saída do loader.");
+          boot.style.opacity = '0';
+          setTimeout(() => boot.remove(), 500);
+        }
+      }, 4000);
+    </script>
   </body>
 </html>

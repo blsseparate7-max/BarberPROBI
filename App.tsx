@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { MOCK_DATA } from './constants.tsx';
-import { AppData, ParametrosAnuais } from './types.ts';
+import { MOCK_DATA } from './constants';
+import { AppData, ParametrosAnuais } from './types';
 import Dashboard from './components/Dashboard.tsx';
 import Professionals from './components/Professionals.tsx';
 import CashFlow from './components/CashFlow.tsx';
@@ -9,13 +9,14 @@ import Expenses from './components/Expenses.tsx';
 import Config from './components/Config.tsx';
 import Meetings from './components/Meetings.tsx';
 import Subscriptions from './components/Subscriptions.tsx';
+import FinancialPlanning from './components/FinancialPlanning.tsx';
 import Navigation from './components/Navigation.tsx';
 import { Save, Cloud, CloudOff, RefreshCw, LogOut, Database } from 'lucide-react';
 import { auth } from './services/firebase.ts';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Login, LogoutButton } from './components/Auth.tsx';
-import { loadAppData, migrateToCloud, saveProfissional, saveProducao, saveReceitaExtra, saveGasto, saveParametros, saveMeetingNote } from './services/dataService.ts';
-import { motion, AnimatePresence } from 'motion/react';
+import { loadAppData, migrateToCloud, saveProfissional, saveProducao, saveReceitaExtra, saveGasto, saveParametros, saveMeetingNote, deleteProfissional, deleteMeetingNote, saveFechamentoMes, savePlanning } from './services/dataService.ts';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -23,28 +24,65 @@ const App: React.FC = () => {
   const [dataLoading, setDataLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [data, setData] = useState<AppData>(MOCK_DATA);
+  const [data, setData] = useState<AppData>({
+    ...MOCK_DATA,
+    profissionais: MOCK_DATA.profissionais || [],
+    producao: MOCK_DATA.producao || [],
+    receitasExtras: MOCK_DATA.receitasExtras || [],
+    gastos: MOCK_DATA.gastos || [],
+    parametros: MOCK_DATA.parametros || [],
+    meetingNotes: MOCK_DATA.meetingNotes || [],
+    planejamento: MOCK_DATA.planejamento || [],
+    categoriasGastos: MOCK_DATA.categoriasGastos || []
+  });
   const [lastSaved, setLastSaved] = useState<string>('');
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'error' | 'offline'>('synced');
   const [showMigration, setShowMigration] = useState(false);
 
   // Auth Listener
   useEffect(() => {
+    console.log("App: Iniciando listener de autenticação (onAuthStateChanged)...");
+    
+    if (!auth) {
+        console.error("App: Objeto 'auth' é nulo. O Firebase falhou ao inicializar.");
+        setAuthLoading(false);
+        return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (u) => {
+      console.log("App: Resultado do listener de auth ->", u ? `Usuário: ${u.email}` : "Nenhum usuário logado");
       setUser(u);
+      if (!u) {
+        setData({
+          ...MOCK_DATA,
+          profissionais: MOCK_DATA.profissionais || [],
+          producao: MOCK_DATA.producao || [],
+          receitasExtras: MOCK_DATA.receitasExtras || [],
+          gastos: MOCK_DATA.gastos || [],
+          parametros: MOCK_DATA.parametros || [],
+          meetingNotes: MOCK_DATA.meetingNotes || [],
+          planejamento: MOCK_DATA.planejamento || [],
+          categoriasGastos: MOCK_DATA.categoriasGastos || []
+        });
+        setActiveTab('dashboard');
+      }
+      setAuthLoading(false);
+    }, (error) => {
+      console.error("App: Erro no listener onAuthStateChanged:", error);
       setAuthLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
   // Fetch Data from Firestore when user logs in
   const fetchData = useCallback(async () => {
     if (!user) return;
+    console.log("App: Buscando dados para o usuário:", user.email);
     setDataLoading(true);
     try {
       const cloudData = await loadAppData();
-      
-      // If cloud data is virtually empty, maybe suggest migration from local
+      console.log("App: Dados carregados da nuvem com sucesso.");
       const hasCloudData = (cloudData.profissionais?.length ?? 0) > 0 || (cloudData.parametros?.length ?? 0) > 0;
       const localDataStr = localStorage.getItem('barber_bi_data');
       
@@ -55,14 +93,13 @@ const App: React.FC = () => {
       if (hasCloudData) {
         setData(prev => ({
           ...prev,
-          ...cloudData,
-          // Ensure structure
-          parametros: cloudData.parametros || prev.parametros,
-          profissionais: cloudData.profissionais || prev.profissionais,
-          producao: cloudData.producao || prev.producao,
-          receitasExtras: cloudData.receitasExtras || prev.receitasExtras,
-          gastos: cloudData.gastos || prev.gastos,
-          meetingNotes: cloudData.meetingNotes || prev.meetingNotes,
+          profissionais: cloudData.profissionais || [],
+          producao: cloudData.producao || [],
+          receitasExtras: cloudData.receitasExtras || [],
+          gastos: cloudData.gastos || [],
+          parametros: cloudData.parametros || [],
+          meetingNotes: cloudData.meetingNotes || [],
+          planejamento: cloudData.planejamento || [],
           categoriasGastos: prev.categoriasGastos // This is usually constant
         }));
       }
@@ -85,56 +122,54 @@ const App: React.FC = () => {
   // But wait, the user wants "Ao salvar/editar/excluir qualquer dado, atualizar no Firestore"
   // I will wrap the setData for better control
 
-  const updateDataAndSync = useCallback(async (newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => {
+  const syncToCloud = useCallback(async (updated: AppData, specificSync?: { type: string, payload: any }) => {
+    if (!user) {
+      localStorage.setItem('barber_bi_data', JSON.stringify(updated));
+      setLastSaved(new Date().toLocaleTimeString());
+      return;
+    }
+
+    setSyncStatus('syncing');
+    console.log("App: Sincronizando com a nuvem...", specificSync?.type || 'Migração Geral');
+    
+    try {
+      if (specificSync) {
+        const { type, payload } = specificSync;
+        
+        switch(type) {
+          case 'profissional': await saveProfissional(payload); break;
+          case 'delete_profissional': await deleteProfissional(payload); break;
+          case 'producao': await saveProducao(payload); break;
+          case 'receita': await saveReceitaExtra(payload); break;
+          case 'gasto': await saveGasto(payload); break;
+          case 'parametro': await saveParametros(payload); break;
+          case 'fechamento_mes': await saveFechamentoMes(payload); break;
+          case 'note': await saveMeetingNote(payload); break;
+          case 'delete_note': await deleteMeetingNote(payload); break;
+          case 'planning': await savePlanning(payload); break;
+          default: 
+            console.warn("App: Tipo de sincronização desconhecido:", type);
+            await migrateToCloud(updated);
+        }
+      } else {
+        await migrateToCloud(updated);
+      }
+      setSyncStatus('synced');
+      setLastSaved(new Date().toLocaleTimeString());
+      console.log("App: Sincronização finalizada com sucesso.");
+    } catch (e) {
+      console.error("App: Erro na sincronização:", e);
+      setSyncStatus('error');
+    }
+  }, [user]);
+
+  const updateDataAndSync = useCallback((newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => {
     setData(prev => {
       const updated = typeof newData === 'function' ? newData(prev) : newData;
-      
-      // Perform background sync if authenticated
-      if (user) {
-        setSyncStatus('syncing');
-        // If specificSync is provided, we can be efficient. 
-        // If not, we have to guess or sync the whole lot (expensive).
-        // Since many components call setData with the whole object, we'll try to be smart or just do it.
-        
-        // For this implementation, I'll use a simplified background sync of the whole data set 
-        // to subcollections (only if it changed) or I'll just sync the whole thing to fulfill the requirement.
-        // Actually, let's use the individual save functions for the whole arrays for now to ensure all is synced.
-        
-        const syncAll = async () => {
-             try {
-                // To avoid overloading, we'd ideally only sync what changed.
-                // But without a diff, we'll just iterate. 
-                // In a production app, we'd pass specific update functions instead of generic setData.
-                
-                // Let's implement the specific sync logic here to be more efficient
-                if (specificSync) {
-                    switch(specificSync.type) {
-                        case 'profissional': await saveProfissional(specificSync.payload); break;
-                        case 'producao': await saveProducao(specificSync.payload); break;
-                        case 'receita': await saveReceitaExtra(specificSync.payload); break;
-                        case 'gasto': await saveGasto(specificSync.payload); break;
-                        case 'parametro': await saveParametros(specificSync.payload); break;
-                        case 'note': await saveMeetingNote(specificSync.payload); break;
-                    }
-                } else {
-                    // Fallback: sync everything (Migration-like but for updates)
-                    await migrateToCloud(updated);
-                }
-                setSyncStatus('synced');
-                setLastSaved(new Date().toLocaleTimeString());
-             } catch (e) {
-                setSyncStatus('error');
-             }
-        };
-        syncAll();
-      } else {
-          localStorage.setItem('barber_bi_data', JSON.stringify(updated));
-          setLastSaved(new Date().toLocaleTimeString());
-      }
-      
+      syncToCloud(updated, specificSync);
       return updated;
     });
-  }, [user]);
+  }, [syncToCloud]);
 
   const handleMigration = async () => {
     if (!user) return;
@@ -157,9 +192,31 @@ const App: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
         <RefreshCw className="text-blue-600 animate-spin mb-4" size={40} />
-        <p className="text-slate-500 font-bold text-sm">Verificando acesso...</p>
+        <p className="text-slate-800 font-bold text-sm uppercase">Verificando acesso...</p>
+        <p className="text-slate-400 text-[10px] uppercase font-bold mt-2 tracking-widest">BarberPro BI Intelligence</p>
+      </div>
+    );
+  }
+
+  // Se o objeto auth for nulo, significa que o Firebase nem conseguiu iniciar
+  if (!auth) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-10 text-center">
+        <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-red-100">
+          <Database size={40} />
+        </div>
+        <h1 className="text-2xl font-black text-slate-800 tracking-tighter mb-4 uppercase">Erro de Conexão</h1>
+        <p className="text-slate-500 text-sm font-bold max-w-xs mx-auto mb-8">
+          Não foi possível inicializar o Firebase. Verifique se as chaves da API estão configuradas corretamente nas variáveis de ambiente.
+        </p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl"
+        >
+          Tentar Novamente
+        </button>
       </div>
     );
   }
@@ -182,6 +239,7 @@ const App: React.FC = () => {
       case 'dashboard': return <Dashboard data={data} year={selectedYear} />;
       case 'professionals': return <Professionals data={data} setData={updateDataAndSync} year={selectedYear} />;
       case 'fluxo': return <CashFlow data={data} setData={updateDataAndSync} year={selectedYear} />;
+      case 'planejamento': return <FinancialPlanning data={data} setData={updateDataAndSync} />;
       case 'assinaturas': return <Subscriptions data={data} year={selectedYear} />;
       case 'reuniao': return <Meetings data={data} setData={updateDataAndSync} year={selectedYear} />;
       case 'gastos': return <Expenses data={data} year={selectedYear} />;
@@ -191,7 +249,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col pb-24 md:pb-0 bg-slate-50">
+    <div className="min-h-screen flex flex-col pb-32 bg-slate-50 relative">
       <header className="bg-white/80 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex justify-between items-center border-b border-slate-100">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-blue-100">

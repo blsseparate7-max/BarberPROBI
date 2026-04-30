@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
-import { AppData } from '../types.ts';
+import { AppData } from '../types';
 
 interface ExpensesProps {
   data: AppData;

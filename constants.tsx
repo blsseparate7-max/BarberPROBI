@@ -77,5 +77,6 @@ export const MOCK_DATA: AppData = {
     { ano: 2025, mes: 1, categoria: 'Água/Luz', valor: 900 }
   ],
   meetingNotes: [],
-  categoriasGastos: CATEGORIAS_GASTOS
+  categoriasGastos: CATEGORIAS_GASTOS,
+  planejamento: []
 };

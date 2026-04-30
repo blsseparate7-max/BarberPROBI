@@ -102,6 +102,21 @@
         "texto": { "type": "string" }
       },
       "required": ["id", "profissionalId", "ano", "data", "texto"]
+    },
+    "PlanningData": {
+      "title": "Planejamento Financeiro",
+      "description": "Dados de gestão de caixa e dívidas",
+      "type": "object",
+      "properties": {
+        "ano": { "type": "number" },
+        "mes": { "type": "number" },
+        "caixaDisponivel": { "type": "number" },
+        "totalDividas": { "type": "number" },
+        "parcelasMensais": { "type": "number" },
+        "observacao": { "type": "string" },
+        "lastUpdated": { "type": "string" }
+      },
+      "required": ["ano", "mes", "caixaDisponivel", "totalDividas", "parcelasMensais"]
     }
   },
   "firestore": {
@@ -128,6 +143,10 @@
     "users/{userId}/feedbacks_reuniao": {
       "schema": "MeetingNote",
       "description": "Coleção de notas de reunião por usuário"
+    },
+    "users/{userId}/planejamento": {
+      "schema": "PlanningData",
+      "description": "Coleção de planejamento financeiro por usuário"
     }
   }
 }

@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Cell as BarCell } from 'recharts';
-import { AppData } from '../types.ts';
+import { AppData } from '../types';
 import { DollarSign, Crown, ArrowDownCircle, Wallet, UserCheck, Target, Scissors, TrendingUp, ChevronRight, Award } from 'lucide-react';
 
 interface DashboardProps {
@@ -11,16 +11,23 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ data, year }) => {
   const calculations = useMemo(() => {
-    const params = data.parametros.find(p => p.ano === year) || data.parametros[0];
+    // Fallsave for empty parameters
+    const safeParams = data.parametros || [];
+    const params = safeParams.find(p => p.ano === year) || safeParams[0] || {
+      metaFaturamento: 0,
+      metaPorCadeira: 0,
+      metaGastos: 0,
+    };
+    
     const metaAnual = params?.metaFaturamento || 0;
     
-    const profissionaisAtivos = data.profissionais.filter(p => p.ativo !== false);
+    const profissionaisAtivos = (data.profissionais || []).filter(p => p.ativo !== false);
     const metaMensalOperacional = profissionaisAtivos.reduce((acc, p) => acc + (p.metaMensal || params?.metaPorCadeira || 0), 0);
     const metaProducaoAnual = metaMensalOperacional * 12;
 
-    const producaoAno = data.producao.filter(p => p.ano === year);
-    const receitasAno = data.receitasExtras.filter(r => r.ano === year);
-    const gastosAno = data.gastos.filter(g => g.ano === year);
+    const producaoAno = (data.producao || []).filter(p => p.ano === year);
+    const receitasAno = (data.receitasExtras || []).filter(r => r.ano === year);
+    const gastosAno = (data.gastos || []).filter(g => g.ano === year);
 
     const faturamentoServicos = producaoAno.reduce((acc, curr) => acc + curr.producaoBruta, 0);
     const faturamentoAssinaturas = receitasAno.reduce((acc, r) => acc + r.assinaturas, 0);

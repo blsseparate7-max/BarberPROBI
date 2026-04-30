@@ -2,19 +2,26 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
+    
+    // 1. Conexão de teste - Deve ser acessível para validar o SDK
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // 2. Regras para Coleção de Usuários (/users/{userId})
+    match /users/{userId} {
+      // O usuário autenticado tem acesso total ao seu próprio diretório e sub-recursos
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      match /{allPaths=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // 3. Bloqueio Base (Default Deny)
     match /{document=**} {
       allow read, write: if false;
     }
-
-    // User data isolation
-    match /users/{userId}/{collectionName}/{docId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Recursive match for any subcollections under users/{userId}
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
   }
 }
+
