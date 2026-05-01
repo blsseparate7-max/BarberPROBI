@@ -152,7 +152,15 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
   const handleGenerateScript = async () => {
     setIsGenerating(true);
     setAiScript('');
-    const ai = new GoogleGenerativeAI(process.env.API_KEY || '');
+    
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      setAiScript("Configuração de IA (GEMINI_API_KEY) não encontrada no ambiente.");
+      setIsGenerating(false);
+      return;
+    }
+    
+    const ai = new GoogleGenerativeAI(apiKey);
     
     // Absorvendo as notas semanais/registros para o prompt
     const notesText = notes.map(n => `- ${n.texto}`).join('\n');

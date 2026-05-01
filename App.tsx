@@ -78,27 +78,25 @@ const App: React.FC = () => {
   // Fetch Data from Firestore when user logs in
   const fetchData = useCallback(async () => {
     if (!user) return;
-    console.log("App: Buscando dados para o usuário:", user.email);
+    
+    console.log("App: Iniciando carregamento de dados para:", user.email);
     setDataLoading(true);
     setSyncStatus('syncing');
     
     try {
       const cloudData = await loadAppData();
-      console.log("App: Dados carregados da nuvem. Analisando integridade...");
+      console.log("App: Dados brutos recebidos da nuvem.");
       
-      // Consider cloud data valid if there are professionals OR parameters OR production records
-      const hasCloudData = 
+      // Critério de integridade: existem dados reais salvos?
+      const hasRealData = 
         (cloudData.profissionais?.length ?? 0) > 0 || 
         (cloudData.parametros?.length ?? 0) > 0 ||
-        (cloudData.producao?.length ?? 0) > 0;
+        (cloudData.producao?.length ?? 0) > 0 ||
+        (cloudData.receitasExtras?.length ?? 0) > 0 ||
+        (cloudData.gastos?.length ?? 0) > 0;
 
-      const localDataStr = localStorage.getItem('barber_bi_data');
-      
-      if (!hasCloudData && localDataStr) {
-        setShowMigration(true);
-      }
-
-      if (hasCloudData) {
+      if (hasRealData) {
+        console.log("App: Restaurando estado do sistema via Firestore.");
         setData({
           profissionais: cloudData.profissionais || [],
           producao: cloudData.producao || [],
@@ -107,16 +105,34 @@ const App: React.FC = () => {
           parametros: cloudData.parametros || [],
           meetingNotes: cloudData.meetingNotes || [],
           planejamento: cloudData.planejamento || [],
-          categoriasGastos: MOCK_DATA.categoriasGastos // Use categories from constants
+          categoriasGastos: MOCK_DATA.categoriasGastos
         });
         setSyncStatus('synced');
         setLastSaved(new Date().toLocaleTimeString());
       } else {
-        console.log("App: Nenhumm dado encontrado na nuvem para este usuário. Mantendo mocks.");
+        // Se o usuário está logado mas não há nada na nuvem, inicializamos vazio
+        // Isso evita que mocks apareçam e desapareçam ou se misturem
+        console.log("App: Perfil novo detectado. Aguardando importação ou novos dados.");
+        setData({
+          profissionais: [],
+          producao: [],
+          receitasExtras: [],
+          gastos: [],
+          parametros: [],
+          meetingNotes: [],
+          planejamento: [],
+          categoriasGastos: MOCK_DATA.categoriasGastos
+        });
+        
+        // Verificar se existe backup local para sugerir migração
+        const localDataStr = localStorage.getItem('barber_bi_data');
+        if (localDataStr) {
+          setShowMigration(true);
+        }
         setSyncStatus('synced');
       }
     } catch (err) {
-      console.error("App: Falha crítica ao carregar dados do Firestore:", err);
+      console.error("App: Falha no carregamento inicial:", err);
       setSyncStatus('error');
     } finally {
       setDataLoading(false);
