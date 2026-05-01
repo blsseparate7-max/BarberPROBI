@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { AppData, MeetingNote } from '../types';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { 
   MessageSquare, 
   BrainCircuit, 
@@ -160,7 +160,7 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
       return;
     }
     
-    const ai = new GoogleGenerativeAI(apiKey);
+    const ai = new GoogleGenAI({ apiKey });
     
     if (!performance && notes.length === 0) {
       setAiScript("Dados insuficientes (sem notas e sem produção) para gerar feedback.");
@@ -200,12 +200,13 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
     `;
 
     try {
-      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      setAiScript(response.text() || "Erro ao processar feedback.");
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      });
+      setAiScript(response.text || "Erro ao processar feedback.");
     } catch (error) {
-      console.error("Erro na geração de feedback:", error);
+      console.error("Erro na IA:", error);
       setAiScript(`Erro ao gerar análise: ${error instanceof Error ? error.message : 'Falha na comunicação com a IA.'}`);
     } finally {
       setIsGenerating(false);
@@ -229,7 +230,7 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
       return;
     }
 
-    const ai = new GoogleGenerativeAI(apiKey);
+    const ai = new GoogleGenAI({ apiKey });
 
     // Agrupar notas por profissional para o prompt
     const notesSummary = data.profissionais.map(p => {
@@ -265,12 +266,13 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
     `;
 
     try {
-      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      setGeneralAiScript(response.text() || "Erro ao gerar pauta geral.");
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      });
+      setGeneralAiScript(response.text || "Erro ao gerar pauta geral.");
     } catch (error) {
-      console.error("Erro na geração de pauta geral:", error);
+      console.error("Erro na IA:", error);
       setGeneralAiScript(`Erro ao gerar análise coletiva: ${error instanceof Error ? error.message : 'Falha na comunicação com a IA.'}`);
     } finally {
       setIsGenerating(false);

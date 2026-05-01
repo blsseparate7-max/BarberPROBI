@@ -63,11 +63,11 @@ export const generateFinancialAnalysis = async (
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: prompt,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
     return response.text;
   } catch (error) {
-    console.error("Erro ao gerar análise financeira:", error);
+    console.error("Erro na IA:", error);
     return "Erro ao gerar análise. Verifique sua conexão e dados.";
   }
 };
@@ -93,11 +93,11 @@ export const getBusinessInsights = async (appData: AppData, apiKey?: string) => 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: prompt,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
     return response.text;
   } catch (error) {
-    console.error("Erro ao obter insights da IA:", error);
+    console.error("Erro na IA:", error);
     return "Erro ao consultar a inteligência estratégica.";
   }
 };

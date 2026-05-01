@@ -261,11 +261,21 @@ const Professionals: React.FC<ProfessionalsProps> = ({ data, setData, year }) =>
                   </div>
                   <div>
                     <label className="text-[9px] font-black text-blue-400 uppercase ml-2 mb-1 block">Meta Mensal (R$)</label>
-                    <input type="number" className="w-full p-4 bg-white border border-blue-200 rounded-2xl font-black text-blue-700 outline-none focus:border-blue-500" value={formProf.metaMensal} onChange={(e) => setFormProf({...formProf, metaMensal: Number(e.target.value)})} />
+                    <input 
+                      type="number" 
+                      className="w-full p-4 bg-white border border-blue-200 rounded-2xl font-black text-blue-700 outline-none focus:border-blue-500" 
+                      value={formProf.metaMensal || ''} 
+                      onChange={(e) => setFormProf({...formProf, metaMensal: Number(e.target.value) || 0})} 
+                    />
                   </div>
                   <div>
                     <label className="text-[9px] font-black text-blue-400 uppercase ml-2 mb-1 block">Meta Anual (R$)</label>
-                    <input type="number" className="w-full p-4 bg-white border border-blue-200 rounded-2xl font-black text-blue-700 outline-none focus:border-blue-500" value={formProf.metaAnual} onChange={(e) => setFormProf({...formProf, metaAnual: Number(e.target.value)})} />
+                    <input 
+                      type="number" 
+                      className="w-full p-4 bg-white border border-blue-200 rounded-2xl font-black text-blue-700 outline-none focus:border-blue-500" 
+                      value={formProf.metaAnual || ''} 
+                      onChange={(e) => setFormProf({...formProf, metaAnual: Number(e.target.value) || 0})} 
+                    />
                   </div>
                 </div>
               </div>

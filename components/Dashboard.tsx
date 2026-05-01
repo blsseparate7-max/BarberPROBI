@@ -30,20 +30,21 @@ const Dashboard: React.FC<DashboardProps> = ({ data, year }) => {
     const gastosAno = (data.gastos || []).filter(g => g.ano === year);
 
     const faturamentoServicos = producaoAno.reduce((acc, curr) => acc + curr.producaoBruta, 0);
+    const faturamentoVendasProdutos = producaoAno.reduce((acc, curr) => acc + (curr.vendasProdutos || 0), 0);
     const faturamentoAssinaturas = receitasAno.reduce((acc, r) => acc + r.assinaturas, 0);
     const faturamentoOutros = receitasAno.reduce((acc, r) => acc + r.pacotes + r.geladeira + r.dinheiro + r.cartao + r.pix, 0);
     
-    const faturamentoTotal = faturamentoServicos + faturamentoOutros + faturamentoAssinaturas;
+    const faturamentoTotal = faturamentoServicos + faturamentoOutros + faturamentoAssinaturas + faturamentoVendasProdutos;
     const faltaParaMetaAnual = Math.max(0, metaAnual - faturamentoTotal);
     
     const ultimoMesComDados = producaoAno.length > 0 ? Math.max(...producaoAno.map(p => p.mes)) : new Date().getMonth() + 1;
     const mesesRestantes = 12 - ultimoMesComDados + 1;
     const mediaMensalNecessaria = mesesRestantes > 0 ? faltaParaMetaAnual / mesesRestantes : 0;
 
-    const producaoMesAtual = producaoAno.filter(p => p.mes === ultimoMesComDados).reduce((acc, curr) => acc + curr.producaoBruta, 0);
+    const producaoMesAtual = producaoAno.filter(p => p.mes === ultimoMesComDados).reduce((acc, curr) => acc + curr.producaoBruta + (curr.vendasProdutos || 0), 0);
 
     const totalGastos = gastosAno.reduce((acc, curr) => acc + curr.valor, 0);
-    const totalRepasses = producaoAno.reduce((acc, curr) => acc + curr.repasseProfissional + curr.repasseAssinatura, 0);
+    const totalRepasses = producaoAno.reduce((acc, curr) => acc + curr.repasseProfissional + curr.repasseAssinatura + (curr.vendasProdutosComissao || 0), 0);
     const saidaTotal = totalGastos + totalRepasses;
     const saldoFinal = faturamentoTotal - saidaTotal;
 
@@ -52,11 +53,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data, year }) => {
       const pMes = (producaoAno || []).filter(p => p.mes === mes);
       const rMes = (receitasAno || []).find(r => r.mes === mes);
       const prodServices = pMes.reduce((s, c) => s + c.producaoBruta, 0);
+      const prodVendas = pMes.reduce((s, c) => s + (c.vendasProdutos || 0), 0);
       const subRevenue = rMes ? rMes.assinaturas : 0;
       const otherRevenue = rMes ? (rMes.pacotes + rMes.geladeira + rMes.dinheiro + rMes.cartao + rMes.pix) : 0;
-      const totalMes = prodServices + subRevenue + otherRevenue;
+      const totalMes = prodServices + prodVendas + subRevenue + otherRevenue;
       
-      const repMes = pMes.reduce((s, c) => s + c.repasseProfissional + c.repasseAssinatura, 0);
+      const repMes = pMes.reduce((s, c) => s + c.repasseProfissional + c.repasseAssinatura + (c.vendasProdutosComissao || 0), 0);
       const gMes = (gastosAno || []).filter(g => g.mes === mes).reduce((s, c) => s + c.valor, 0);
       
       const percentSub = totalMes > 0 ? (subRevenue / totalMes) * 100 : 0;

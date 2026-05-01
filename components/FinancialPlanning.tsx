@@ -68,11 +68,12 @@ const FinancialPlanning: React.FC<FinancialPlanningProps> = ({ data, setData }) 
       acc + p.repasseProfissional + p.repasseAssinatura + (p.vendasProdutosComissao || 0), 0);
     const totalSaidas = totalGastos + totalRepasses;
 
+    const totalVendasProdutos = monthData.producao.reduce((acc, p) => acc + (p.vendasProdutos || 0), 0);
     const totalExtras = monthData.receitas.reduce((acc, r) => 
       acc + r.dinheiro + r.cartao + r.pix + r.assinaturas + r.pacotes + r.geladeira + r.outras, 0);
     
-    const faturamentoTotal = totalProducao + totalExtras;
-    const prevFaturamento = prevMonthData.producao.reduce((acc, p) => acc + p.producaoBruta, 0) + 
+    const faturamentoTotal = totalProducao + totalExtras + totalVendasProdutos;
+    const prevFaturamento = prevMonthData.producao.reduce((acc, p) => acc + p.producaoBruta + (p.vendasProdutos || 0), 0) + 
                           prevMonthData.receitas.reduce((acc, r) => acc + r.dinheiro + r.cartao + r.pix + r.assinaturas + r.pacotes + r.geladeira + r.outras, 0);
 
     const resultado = faturamentoTotal - totalSaidas;
