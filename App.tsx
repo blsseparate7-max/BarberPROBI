@@ -25,44 +25,42 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [data, setData] = useState<AppData>({
-    ...MOCK_DATA,
-    profissionais: MOCK_DATA.profissionais || [],
-    producao: MOCK_DATA.producao || [],
-    receitasExtras: MOCK_DATA.receitasExtras || [],
-    gastos: MOCK_DATA.gastos || [],
-    parametros: MOCK_DATA.parametros || [],
-    meetingNotes: MOCK_DATA.meetingNotes || [],
-    planejamento: MOCK_DATA.planejamento || [],
-    categoriasGastos: MOCK_DATA.categoriasGastos || []
+    profissionais: [],
+    producao: [],
+    receitasExtras: [],
+    gastos: [],
+    parametros: [],
+    meetingNotes: [],
+    planejamento: [],
+    categoriasGastos: []
   });
   const [lastSaved, setLastSaved] = useState<string>('');
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'error' | 'offline'>('synced');
   const [showMigration, setShowMigration] = useState(false);
 
   // Auth Listener
-  useEffect(() => {
-    console.log("App: Iniciando listener de autenticação (onAuthStateChanged)...");
+    useEffect(() => {
+    console.log("[Auth] Monitorando estado da sessão...");
     
     if (!auth) {
-        console.error("App: Objeto 'auth' é nulo. O Firebase falhou ao inicializar.");
+        console.error("[Auth] Falha crítica: Firebase Auth não inicializado.");
         setAuthLoading(false);
         return;
     }
 
     const unsubscribe = onAuthStateChanged(auth, (u) => {
-      console.log("App: Resultado do listener de auth ->", u ? `Usuário: ${u.email}` : "Nenhum usuário logado");
+      console.log(`[Auth] Sessão: ${u ? `Autenticado (${u.email})` : 'Visitante'}`);
       setUser(u);
       if (!u) {
         setData({
-          ...MOCK_DATA,
-          profissionais: MOCK_DATA.profissionais || [],
-          producao: MOCK_DATA.producao || [],
-          receitasExtras: MOCK_DATA.receitasExtras || [],
-          gastos: MOCK_DATA.gastos || [],
-          parametros: MOCK_DATA.parametros || [],
-          meetingNotes: MOCK_DATA.meetingNotes || [],
-          planejamento: MOCK_DATA.planejamento || [],
-          categoriasGastos: MOCK_DATA.categoriasGastos || []
+          profissionais: [],
+          producao: [],
+          receitasExtras: [],
+          gastos: [],
+          parametros: [],
+          meetingNotes: [],
+          planejamento: [],
+          categoriasGastos: []
         });
         setActiveTab('dashboard');
       }
@@ -79,7 +77,7 @@ const App: React.FC = () => {
   const fetchData = useCallback(async () => {
     if (!user) return;
     
-    console.log("App: Iniciando carregamento de dados para:", user.email);
+    console.log(`[Sync] Sincronizando dados para ${user.email}...`);
     setDataLoading(true);
     setSyncStatus('syncing');
     
@@ -96,12 +94,10 @@ const App: React.FC = () => {
         categorias: cloudData.categoriasGastos?.length ?? 0
       };
       
-      console.log("App: Estatísticas dos dados na nuvem:", counts);
-      
       const hasRealData = Object.values(counts).some(count => count > 0);
 
       if (hasRealData) {
-        console.log("App: Restaurando estado do sistema via Firestore.");
+        console.log("[Sync] Dados restaurados com sucesso.");
         setData({
           profissionais: cloudData.profissionais || [],
           producao: cloudData.producao || [],
@@ -110,26 +106,21 @@ const App: React.FC = () => {
           parametros: cloudData.parametros || [],
           meetingNotes: cloudData.meetingNotes || [],
           planejamento: cloudData.planejamento || [],
-          categoriasGastos: (cloudData.categoriasGastos && cloudData.categoriasGastos.length > 0)
-            ? cloudData.categoriasGastos 
-            : MOCK_DATA.categoriasGastos
+          categoriasGastos: cloudData.categoriasGastos || []
         });
         setSyncStatus('synced');
         setLastSaved(new Date().toLocaleTimeString());
       } else {
-        console.log("App: Nenhum dado Cloud encontrado. Mantendo dados atuais ou MOCK.");
-        // Se já temos dados no state (ex: o usuário acabou de importar), não limpamos.
-        // Verificamos se o estado atual é o MOCK_DATA ou se já é algo novo.
-        setData(prev => {
-          const isInitial = prev.profissionais.length === MOCK_DATA.profissionais.length && 
-                           prev.profissionais[0]?.nome === MOCK_DATA.profissionais[0]?.nome;
-          
-          if (isInitial) {
-             console.log("App: Estado atual é o MOCK, mantendo.");
-             return prev;
-          }
-          console.log("App: Estado atual já possui dados (possível importação recente), evitando limpeza.");
-          return prev;
+        console.log("[Sync] Perfil novo detectado (sem dados no Firestore).");
+        setData({
+          profissionais: [],
+          producao: [],
+          receitasExtras: [],
+          gastos: [],
+          parametros: [],
+          meetingNotes: [],
+          planejamento: [],
+          categoriasGastos: MOCK_DATA.categoriasGastos || []
         });
         
         const localDataStr = localStorage.getItem('barber_bi_data');
@@ -139,9 +130,7 @@ const App: React.FC = () => {
         setSyncStatus('synced');
       }
     } catch (err: any) {
-      console.error("App: Falha crítica ao carregar dados do Firestore:", err);
-      // Se houver erro no carregamento, NÃO resetamos o state 'data' para vazio, 
-      // pois isso esconderia os dados caso o Firestore apenas tenha falhado momentaneamente.
+      console.error("[Sync] Erro ao carregar dados:", err);
       setSyncStatus('error');
     } finally {
       setDataLoading(false);
@@ -161,13 +150,14 @@ const App: React.FC = () => {
 
   const syncToCloud = useCallback(async (updated: AppData, specificSync?: { type: string, payload: any }) => {
     if (!user) {
+      console.log("DEBUG - Usuário offline. Salvando apenas no LocalStorage.");
       localStorage.setItem('barber_bi_data', JSON.stringify(updated));
       setLastSaved(new Date().toLocaleTimeString());
       return;
     }
 
     setSyncStatus('syncing');
-    console.log("App: Sincronizando com a nuvem...", specificSync?.type || 'Migração Geral');
+    console.log(`[Sync] Salvando alteração: ${specificSync?.type || 'Geral'}`);
     
     try {
       if (specificSync) {
@@ -185,7 +175,6 @@ const App: React.FC = () => {
           case 'delete_note': await deleteMeetingNote(payload); break;
           case 'planning': await savePlanning(payload); break;
           default: 
-            console.warn("App: Tipo de sincronização desconhecido:", type);
             await migrateToCloud(updated);
         }
       } else {
@@ -193,9 +182,8 @@ const App: React.FC = () => {
       }
       setSyncStatus('synced');
       setLastSaved(new Date().toLocaleTimeString());
-      console.log("App: Sincronização finalizada com sucesso.");
-    } catch (e) {
-      console.error("App: Erro na sincronização:", e);
+    } catch (e: any) {
+      console.error("[Sync] Erro ao salvar dados:", e);
       setSyncStatus('error');
     }
   }, [user]);
@@ -221,11 +209,12 @@ const App: React.FC = () => {
 
       // 2. Perform background sync
       await syncToCloud(dataToSync, specificSync);
-      
-      setSyncStatus('synced');
-      setLastSaved(new Date().toLocaleTimeString());
-    } catch (err) {
-      console.error("App: Erro crítico no updateDataAndSync:", err);
+    } catch (err: any) {
+      console.error("DEBUG - ERRO COMPLETO NO updateDataAndSync:", err);
+      if (err instanceof Error) {
+        console.error("DEBUG - Mensagem:", err.message);
+        console.error("DEBUG - Stack:", err.stack);
+      }
       setSyncStatus('error');
       throw err; // Re-throw to caller (like Config.tsx)
     }
@@ -236,14 +225,18 @@ const App: React.FC = () => {
     const localDataStr = localStorage.getItem('barber_bi_data');
     if (!localDataStr) return;
     
+    console.log("DEBUG - Iniciando Migração de localStorage para Cloud...");
     setDataLoading(true);
     try {
       const localData = JSON.parse(localDataStr);
+      console.log("DEBUG - Dados locais para migrar:", localData);
       await migrateToCloud(localData);
+      console.log("DEBUG - Migração concluída com sucesso.");
       await fetchData();
       setShowMigration(false);
       alert('Dados migrados com sucesso!');
-    } catch (err) {
+    } catch (err: any) {
+      console.error("DEBUG - ERRO NA MIGRAÇÃO:", err);
       alert('Erro na migração.');
     } finally {
       setDataLoading(false);
@@ -375,6 +368,26 @@ const App: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {syncStatus === 'error' && (
+          <div className="mb-6 bg-rose-50 border border-rose-100 p-6 rounded-[32px] shadow-sm flex flex-col items-center gap-4 text-center">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center">
+               <CloudOff size={24} />
+            </div>
+            <div>
+              <h4 className="font-black text-rose-800 text-sm uppercase">Erro de Sincronização</h4>
+              <p className="text-[10px] font-bold text-rose-500 uppercase mt-1 max-w-lg leading-relaxed">
+                Não foi possível carregar ou salvar seus dados na nuvem. Verifique sua conexão e tente novamente.
+              </p>
+            </div>
+            <button 
+              onClick={() => fetchData()}
+              className="px-8 py-3 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-rose-700 transition-all shadow-lg shadow-rose-200"
+            >
+              Tentar Reconectar
+            </button>
+          </div>
+        )}
 
         {renderContent()}
       </main>

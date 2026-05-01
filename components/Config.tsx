@@ -48,11 +48,11 @@ const Config: React.FC<ConfigProps> = ({ data, setData, selectedYear, setSelecte
   const importBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const json = JSON.parse(e.target?.result as string) as AppData;
+        const rawJson = e.target?.result as string;
+        const json = JSON.parse(rawJson) as AppData;
         
         // 1. Validação Básica
         if (!json.profissionais || !Array.isArray(json.profissionais)) {

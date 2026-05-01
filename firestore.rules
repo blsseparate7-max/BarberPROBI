@@ -1,25 +1,26 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Regra pública para o caminho de teste
-    match /test/connection {
-      allow read: if true;
-    }
-
-    // Regras de isolamento total por UID
-    // Permite leitura/escrita em qualquer documento ou subcoleção dentro de /users/{userId}
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      match /{allPaths=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-    }
-
-    // Negação global (opcional mas recomendado)
+    // Negação global (Deny-by-default)
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // Permissão para o check de conectividade (Test Path)
+    match /test/connection {
+      allow read: if request.auth != null;
+    }
+
+    // Isolamento Profissional por UID
+    // Garante que cada usuário acesse somente seus próprios dados sob /users/{userId}
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

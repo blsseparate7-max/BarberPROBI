@@ -1,10 +1,10 @@
 {
-  "projectId": "barberpro-bi",
-  "appId": "1:857718423028:web:43c1164927babeb38acda1",
-  "apiKey": "AIzaSyBYb_JO2AYY502QAqvQHCMDE3Ydbh_WoBg",
-  "authDomain": "barberpro-bi.firebaseapp.com",
-  "firestoreDatabaseId": "(default)",
-  "storageBucket": "barberpro-bi.firebasestorage.app",
-  "messagingSenderId": "857718423028",
-  "measurementId": "G-QJFJ6133YR"
+  "projectId": "gen-lang-client-0831890855",
+  "appId": "1:473578577226:web:62298d962ca429dce035b3",
+  "apiKey": "AIzaSyDdgR9pO-H7Kog_0NDfTH-Fhk0AUwLaVPc",
+  "authDomain": "gen-lang-client-0831890855.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-72e322b3-31d2-43f4-9157-a811e3ce335b",
+  "storageBucket": "gen-lang-client-0831890855.firebasestorage.app",
+  "messagingSenderId": "473578577226",
+  "measurementId": ""
 }

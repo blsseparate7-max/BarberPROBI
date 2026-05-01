@@ -63,7 +63,14 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     operationType,
     path
   }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  
+  console.error(`[FirestoreService] Erro em ${operationType} no caminho ${path}:`, error);
+  if (error instanceof Error) {
+    // @ts-ignore
+    const errorCode = error.code || 'unknown';
+    console.error(`[FirestoreService] Código: ${errorCode} | Mensagem: ${error.message}`);
+  }
+  
   throw new Error(JSON.stringify(errInfo));
 }
 
@@ -209,7 +216,8 @@ export const savePlanning = async (p: PlanningData) => {
 
 // --- Load all data ---
 export const loadAppData = async (userId: string): Promise<Partial<AppData>> => {
-  console.log(`dataService: Iniciando loadAppData para o UID: [${userId}]`);
+  console.log(`[FirestoreService] Carregando dados para o usuário: ${userId}`);
+  
   const data: Partial<AppData> = {
     profissionais: [],
     producao: [],
@@ -231,8 +239,6 @@ export const loadAppData = async (userId: string): Promise<Partial<AppData>> => 
     { key: 'config', path: `users/${userId}/config` }
   ];
 
-  console.log("dataService: Iniciando carregamento paralelo das coleções para", userId);
-
   const results = await Promise.allSettled(
     collections.map(async (c) => {
       try {
@@ -245,7 +251,7 @@ export const loadAppData = async (userId: string): Promise<Partial<AppData>> => 
         const snap = await getDocs(collection(db, c.path));
         return { key: c.key, docs: snap.docs.map(d => d.data()) };
       } catch (err) {
-        console.error(`Erro ao carregar coleção ${c.path}:`, err);
+        console.error(`[FirestoreService] Falha ao ler coleção: ${c.path}`, err);
         throw err;
       }
     })
@@ -266,16 +272,24 @@ export const loadAppData = async (userId: string): Promise<Partial<AppData>> => 
   });
 
   if (hasError) {
+    console.error("DEBUG - Houve erro em uma ou mais coleções no loadAppData");
     throw new Error('Falha parcial no carregamento das coleções do Firestore');
   }
 
-  console.log("dataService: Carregamento finalizado com sucesso.");
+  console.log("DEBUG - Dados carregados da nuvem (resumo):", Object.keys(data).reduce((acc, key) => {
+    // @ts-ignore
+    acc[key] = Array.isArray(data[key]) ? data[key].length : 'object';
+    return acc;
+  }, {}));
+  
   return data;
 };
 
 // --- Migration ---
 export const migrateToCloud = async (localData: AppData) => {
   const userId = getUserId();
+  console.log("DEBUG - Iniciando migrateToCloud (Importação/Backup para nuvem)");
+  console.log("DEBUG - Dados sendo enviados para migração:", localData);
   
   // Helper to get doc ref
   const getDocRef = (coll: string, id: string) => doc(db, `users/${userId}/${coll}`, id);
@@ -337,9 +351,11 @@ export const migrateToCloud = async (localData: AppData) => {
     chunk.forEach(op => batch.set(op.ref, op.data));
     
     try {
+      console.log(`DEBUG - Enviando batch ${i / CHUNK_SIZE + 1} (${chunk.length} operações)...`);
       await batch.commit();
-      console.log(`dataService: Batch ${i / CHUNK_SIZE + 1} commitado com sucesso.`);
+      console.log(`DEBUG - Batch ${i / CHUNK_SIZE + 1} salvo com sucesso.`);
     } catch (err) {
+      console.error(`DEBUG - Erro no batch commit (chunk ${i}):`, err);
       handleFirestoreError(err, OperationType.WRITE, `users/${userId} (batch migration chunk ${i})`);
     }
   }
