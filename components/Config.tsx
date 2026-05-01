@@ -44,6 +44,16 @@ const Config: React.FC<ConfigProps> = ({ data, setData, selectedYear, setSelecte
   };
 
   const [isImporting, setIsImporting] = useState(false);
+  const [apiKey, setApiKey] = useState(data.geminiKey || '');
+
+  const saveApiKey = async () => {
+    try {
+      await setData(prev => ({ ...prev, geminiKey: apiKey }));
+      alert('Chave de IA salva com sucesso!');
+    } catch (err) {
+      alert('Erro ao salvar chave.');
+    }
+  };
 
   const importBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -363,6 +373,41 @@ const Config: React.FC<ConfigProps> = ({ data, setData, selectedYear, setSelecte
             valB={comparisonResults.statsB.assinaturas} 
             diff={comparisonResults.assinaturas} 
           />
+        </div>
+      </section>
+
+      <section className="bg-white p-10 rounded-[48px] shadow-sm border border-slate-100">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+          <div>
+            <h3 className="font-black text-slate-800 text-xl flex items-center gap-2">
+              <RefreshCw size={24} className="text-amber-500" /> Inteligência Estratégica (IA)
+            </h3>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Configure sua chave do Google Gemini para habilitar análises</p>
+          </div>
+          <button 
+            onClick={saveApiKey}
+            className="flex items-center gap-2 bg-amber-500 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-amber-100 hover:scale-105 transition-all"
+          >
+            <Save size={16} /> Salvar Chave
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="relative">
+            <input 
+              type="password" 
+              placeholder="Cole sua chave aqui (AIzaSy...)" 
+              className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl font-bold text-slate-700 focus:ring-2 focus:ring-amber-500 outline-none pr-12 transition-all"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+            />
+            <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300">
+              <Database size={20} />
+            </div>
+          </div>
+          <p className="text-[9px] text-slate-400 font-bold uppercase ml-4">
+            🔒 Sua chave é salva de forma privada no seu banco de dados na nuvem.
+          </p>
         </div>
       </section>
 

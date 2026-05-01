@@ -146,7 +146,8 @@ const FinancialPlanning: React.FC<FinancialPlanningProps> = ({ data, setData }) 
         monthData,
         data,
         selectedYear,
-        selectedMonth
+        selectedMonth,
+        data.geminiKey
       );
 
       const upd: PlanningData = { ...currentPlanning, analiseIA: report };

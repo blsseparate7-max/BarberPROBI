@@ -153,9 +153,9 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
     setIsGenerating(true);
     setAiScript('');
     
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = data.geminiKey || process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      setAiScript("Configuração de IA (GEMINI_API_KEY) não encontrada no ambiente.");
+      setAiScript("Configuração de IA (Chave do Gemini) não encontrada. Vá em 'Ajustes' e cole sua chave.");
       setIsGenerating(false);
       return;
     }
@@ -216,9 +216,9 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
     setIsGenerating(true);
     setGeneralAiScript('');
     
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = data.geminiKey || process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      setGeneralAiScript("Configuração de IA (GEMINI_API_KEY) não encontrada no ambiente.");
+      setGeneralAiScript("Configuração de IA (Chave do Gemini) não encontrada. Vá em 'Ajustes' e cole sua chave.");
       setIsGenerating(false);
       return;
     }

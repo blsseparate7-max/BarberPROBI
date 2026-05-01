@@ -94,6 +94,7 @@ export interface PlanningData {
 }
 
 export interface AppData {
+  geminiKey?: string;
   parametros: ParametrosAnuais[];
   profissionais: Profissional[];
   producao: ProducaoMensal[];

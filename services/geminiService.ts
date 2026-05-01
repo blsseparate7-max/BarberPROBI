@@ -13,9 +13,11 @@ export const generateFinancialAnalysis = async (
   },
   annualData: AppData,
   year: number,
-  month: number
+  month: number,
+  apiKey?: string
 ) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const finalApiKey = apiKey || process.env.GEMINI_API_KEY;
+  const ai = new GoogleGenAI({ apiKey: finalApiKey! });
 
   const totalProducao = monthData.producao.reduce((acc, p) => acc + p.producaoBruta, 0);
   const totalGastos = monthData.gastos.reduce((acc, g) => acc + g.valor, 0);
@@ -70,8 +72,9 @@ export const generateFinancialAnalysis = async (
   }
 };
 
-export const getBusinessInsights = async (appData: AppData) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+export const getBusinessInsights = async (appData: AppData, apiKey?: string) => {
+  const finalApiKey = apiKey || appData.geminiKey || process.env.GEMINI_API_KEY;
+  const ai = new GoogleGenAI({ apiKey: finalApiKey! });
   
   const totalIncome = appData.producao.reduce((acc, p) => acc + p.producaoBruta, 0);
   const totalExpense = appData.gastos.reduce((acc, g) => acc + g.valor, 0);
