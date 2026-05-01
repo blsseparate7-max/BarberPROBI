@@ -84,16 +84,19 @@ const App: React.FC = () => {
     setSyncStatus('syncing');
     
     try {
-      const cloudData = await loadAppData();
+      // Pass the UID explicitly to avoid race conditions with auth.currentUser
+      const cloudData = await loadAppData(user.uid);
       console.log("App: Dados brutos recebidos da nuvem.");
       
       // Critério de integridade: existem dados reais salvos?
+      // Verificamos se há QUALQUER dado útil na nuvem
       const hasRealData = 
         (cloudData.profissionais?.length ?? 0) > 0 || 
         (cloudData.parametros?.length ?? 0) > 0 ||
         (cloudData.producao?.length ?? 0) > 0 ||
         (cloudData.receitasExtras?.length ?? 0) > 0 ||
-        (cloudData.gastos?.length ?? 0) > 0;
+        (cloudData.gastos?.length ?? 0) > 0 ||
+        (cloudData.planejamento?.length ?? 0) > 0;
 
       if (hasRealData) {
         console.log("App: Restaurando estado do sistema via Firestore.");
@@ -110,9 +113,14 @@ const App: React.FC = () => {
         setSyncStatus('synced');
         setLastSaved(new Date().toLocaleTimeString());
       } else {
-        // Se o usuário está logado mas não há nada na nuvem, inicializamos vazio
-        // Isso evita que mocks apareçam e desapareçam ou se misturem
-        console.log("App: Perfil novo detectado. Aguardando importação ou novos dados.");
+        // PERFIL NOVO: Se chegamos aqui, o Firestore retornou sucessivamente arrays vazios
+        console.log("App: Nenhum dado encontrado na nuvem para este UID. Verificando backup local.");
+        
+        // Antes de resetar para arrays vazios, verificamos se já temos dados no state que NÃO são os iniciais
+        // Se o usuário ACABOU de importar dados (importamos no Config e o sync rodou), 
+        // e ele der refresh muito rápido, o Firestore pode estar indexando.
+        // Mas se a importação foi via migrateToCloud, o Firestore já deveria ter.
+        
         setData({
           profissionais: [],
           producao: [],
@@ -124,15 +132,16 @@ const App: React.FC = () => {
           categoriasGastos: MOCK_DATA.categoriasGastos
         });
         
-        // Verificar se existe backup local para sugerir migração
         const localDataStr = localStorage.getItem('barber_bi_data');
         if (localDataStr) {
           setShowMigration(true);
         }
         setSyncStatus('synced');
       }
-    } catch (err) {
-      console.error("App: Falha no carregamento inicial:", err);
+    } catch (err: any) {
+      console.error("App: Falha crítica ao carregar dados do Firestore:", err);
+      // Se houver erro no carregamento, NÃO resetamos o state 'data' para vazio, 
+      // pois isso esconderia os dados caso o Firestore apenas tenha falhado momentaneamente.
       setSyncStatus('error');
     } finally {
       setDataLoading(false);

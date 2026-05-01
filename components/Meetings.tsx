@@ -162,6 +162,12 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
     
     const ai = new GoogleGenerativeAI(apiKey);
     
+    if (!performance && notes.length === 0) {
+      setAiScript("Dados insuficientes (sem notas e sem produção) para gerar feedback.");
+      setIsGenerating(false);
+      return;
+    }
+
     // Absorvendo as notas semanais/registros para o prompt
     const notesText = notes.map(n => `- ${n.texto}`).join('\n');
     
@@ -200,7 +206,7 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
       setAiScript(response.text() || "Erro ao processar feedback.");
     } catch (error) {
       console.error("Erro na geração de feedback:", error);
-      setAiScript("Erro na conexão com a IA.");
+      setAiScript(`Erro ao gerar análise: ${error instanceof Error ? error.message : 'Falha na comunicação com a IA.'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -209,7 +215,21 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
   const handleGenerateGeneralAgenda = async () => {
     setIsGenerating(true);
     setGeneralAiScript('');
-    const ai = new GoogleGenerativeAI(process.env.API_KEY || '');
+    
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      setGeneralAiScript("Configuração de IA (GEMINI_API_KEY) não encontrada no ambiente.");
+      setIsGenerating(false);
+      return;
+    }
+
+    if (allNotesYear.length === 0 && performanceData.statsGeral.faturamentoTotalAno === 0) {
+      setGeneralAiScript("Dados insuficientes para gerar a análise da barbearia.");
+      setIsGenerating(false);
+      return;
+    }
+
+    const ai = new GoogleGenerativeAI(apiKey);
 
     // Agrupar notas por profissional para o prompt
     const notesSummary = data.profissionais.map(p => {
@@ -251,7 +271,7 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
       setGeneralAiScript(response.text() || "Erro ao gerar pauta geral.");
     } catch (error) {
       console.error("Erro na geração de pauta geral:", error);
-      setGeneralAiScript("Erro na conexão com a IA.");
+      setGeneralAiScript(`Erro ao gerar análise coletiva: ${error instanceof Error ? error.message : 'Falha na comunicação com a IA.'}`);
     } finally {
       setIsGenerating(false);
     }

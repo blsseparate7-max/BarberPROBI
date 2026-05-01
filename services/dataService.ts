@@ -198,8 +198,7 @@ export const savePlanning = async (p: PlanningData) => {
 };
 
 // --- Load all data ---
-export const loadAppData = async (): Promise<Partial<AppData>> => {
-  const userId = getUserId();
+export const loadAppData = async (userId: string): Promise<Partial<AppData>> => {
   const data: Partial<AppData> = {
     profissionais: [],
     producao: [],
@@ -234,16 +233,21 @@ export const loadAppData = async (): Promise<Partial<AppData>> => {
     })
   );
 
-  results.forEach((res) => {
+  let hasError = false;
+  results.forEach((res, i) => {
     if (res.status === 'fulfilled') {
       (data as any)[res.value.key] = res.value.docs;
+    } else {
+      hasError = true;
+      console.error(`Falha ao carregar coleção ${collections[i].key}`);
     }
   });
 
-  console.log("dataService: Carregamento finalizado. Status das coleções:", 
-    results.map((r, i) => `${collections[i].key}: ${r.status}`)
-  );
+  if (hasError) {
+    throw new Error('Falha parcial no carregamento das coleções do Firestore');
+  }
 
+  console.log("dataService: Carregamento finalizado com sucesso.");
   return data;
 };
 
