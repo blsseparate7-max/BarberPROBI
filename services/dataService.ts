@@ -73,6 +73,16 @@ const getUserId = () => {
   return user.uid;
 };
 
+// --- Configurações Gerais (Categorias) ---
+export const saveCategoriasGastos = async (categorias: string[]) => {
+  const path = `users/${getUserId()}/config`;
+  try {
+    await setDoc(doc(db, path, 'gastos'), { categorias });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `${path}/gastos`);
+  }
+};
+
 // --- Profissionais ---
 export const saveProfissional = async (p: Profissional) => {
   const path = `users/${getUserId()}/profissionais`;
@@ -217,7 +227,8 @@ export const loadAppData = async (userId: string): Promise<Partial<AppData>> => 
     { key: 'gastos', path: `users/${userId}/gastos_mensal` },
     { key: 'parametros', path: `users/${userId}/metas` },
     { key: 'meetingNotes', path: `users/${userId}/feedbacks_reuniao` },
-    { key: 'planejamento', path: `users/${userId}/planejamento` }
+    { key: 'planejamento', path: `users/${userId}/planejamento` },
+    { key: 'config', path: `users/${userId}/config` }
   ];
 
   console.log("dataService: Iniciando carregamento paralelo das coleções para", userId);
@@ -225,6 +236,12 @@ export const loadAppData = async (userId: string): Promise<Partial<AppData>> => 
   const results = await Promise.allSettled(
     collections.map(async (c) => {
       try {
+        if (c.key === 'config') {
+          const snap = await getDocs(collection(db, c.path));
+          const config: any = {};
+          snap.docs.forEach(d => config[d.id] = d.data());
+          return { key: c.key, docs: config };
+        }
         const snap = await getDocs(collection(db, c.path));
         return { key: c.key, docs: snap.docs.map(d => d.data()) };
       } catch (err) {
@@ -237,7 +254,11 @@ export const loadAppData = async (userId: string): Promise<Partial<AppData>> => 
   let hasError = false;
   results.forEach((res, i) => {
     if (res.status === 'fulfilled') {
-      (data as any)[res.value.key] = res.value.docs;
+      if (res.value.key === 'config') {
+        data.categoriasGastos = res.value.docs.gastos?.categorias || [];
+      } else {
+        (data as any)[res.value.key] = res.value.docs;
+      }
     } else {
       hasError = true;
       console.error(`Falha ao carregar coleção ${collections[i].key}`);
@@ -301,6 +322,11 @@ export const migrateToCloud = async (localData: AppData) => {
       const id = `${p.ano}_${p.mes}`;
       operations.push({ ref: getDocRef('planejamento', id), data: p });
     });
+  }
+
+  // Config
+  if (localData.categoriasGastos) {
+    operations.push({ ref: getDocRef('config', 'gastos'), data: { categorias: localData.categoriasGastos } });
   }
 
   // Execute in batches of 500

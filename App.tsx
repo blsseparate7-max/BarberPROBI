@@ -96,7 +96,8 @@ const App: React.FC = () => {
         (cloudData.producao?.length ?? 0) > 0 ||
         (cloudData.receitasExtras?.length ?? 0) > 0 ||
         (cloudData.gastos?.length ?? 0) > 0 ||
-        (cloudData.planejamento?.length ?? 0) > 0;
+        (cloudData.planejamento?.length ?? 0) > 0 ||
+        (cloudData.categoriasGastos?.length ?? 0) > 0;
 
       if (hasRealData) {
         console.log("App: Restaurando estado do sistema via Firestore.");
@@ -108,7 +109,9 @@ const App: React.FC = () => {
           parametros: cloudData.parametros || [],
           meetingNotes: cloudData.meetingNotes || [],
           planejamento: cloudData.planejamento || [],
-          categoriasGastos: MOCK_DATA.categoriasGastos
+          categoriasGastos: cloudData.categoriasGastos && cloudData.categoriasGastos.length > 0 
+            ? cloudData.categoriasGastos 
+            : MOCK_DATA.categoriasGastos
         });
         setSyncStatus('synced');
         setLastSaved(new Date().toLocaleTimeString());
