@@ -2,25 +2,24 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Função auxiliar para verificar se o usuário está autenticado
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // 1. Caminho de Teste (Público apenas para leitura de validação)
+    // Regra pública para o caminho de teste
     match /test/connection {
       allow read: if true;
     }
 
-    // 2. Regra Recursiva para o Espaço do Usuário
-    // Garante que o usuário logado só acesse seus próprios dados
-    match /users/{userId}/{allPaths=**} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    // Regras de isolamento total por UID
+    // Permite leitura/escrita em qualquer documento ou subcoleção dentro de /users/{userId}
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      match /{allPaths=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
-    // 3. Permissão para o próprio documento de usuário
-    match /users/{userId} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    // Negação global (opcional mas recomendado)
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

@@ -84,20 +84,21 @@ const App: React.FC = () => {
     setSyncStatus('syncing');
     
     try {
-      // Pass the UID explicitly to avoid race conditions with auth.currentUser
       const cloudData = await loadAppData(user.uid);
-      console.log("App: Dados brutos recebidos da nuvem.");
       
-      // Critério de integridade: existem dados reais salvos?
-      // Verificamos se há QUALQUER dado útil na nuvem
-      const hasRealData = 
-        (cloudData.profissionais?.length ?? 0) > 0 || 
-        (cloudData.parametros?.length ?? 0) > 0 ||
-        (cloudData.producao?.length ?? 0) > 0 ||
-        (cloudData.receitasExtras?.length ?? 0) > 0 ||
-        (cloudData.gastos?.length ?? 0) > 0 ||
-        (cloudData.planejamento?.length ?? 0) > 0 ||
-        (cloudData.categoriasGastos?.length ?? 0) > 0;
+      const counts = {
+        profissionais: cloudData.profissionais?.length ?? 0,
+        parametros: cloudData.parametros?.length ?? 0,
+        producao: cloudData.producao?.length ?? 0,
+        receitas: cloudData.receitasExtras?.length ?? 0,
+        gastos: cloudData.gastos?.length ?? 0,
+        planning: cloudData.planejamento?.length ?? 0,
+        categorias: cloudData.categoriasGastos?.length ?? 0
+      };
+      
+      console.log("App: Estatísticas dos dados na nuvem:", counts);
+      
+      const hasRealData = Object.values(counts).some(count => count > 0);
 
       if (hasRealData) {
         console.log("App: Restaurando estado do sistema via Firestore.");
@@ -109,30 +110,26 @@ const App: React.FC = () => {
           parametros: cloudData.parametros || [],
           meetingNotes: cloudData.meetingNotes || [],
           planejamento: cloudData.planejamento || [],
-          categoriasGastos: cloudData.categoriasGastos && cloudData.categoriasGastos.length > 0 
+          categoriasGastos: (cloudData.categoriasGastos && cloudData.categoriasGastos.length > 0)
             ? cloudData.categoriasGastos 
             : MOCK_DATA.categoriasGastos
         });
         setSyncStatus('synced');
         setLastSaved(new Date().toLocaleTimeString());
       } else {
-        // PERFIL NOVO: Se chegamos aqui, o Firestore retornou sucessivamente arrays vazios
-        console.log("App: Nenhum dado encontrado na nuvem para este UID. Verificando backup local.");
-        
-        // Antes de resetar para arrays vazios, verificamos se já temos dados no state que NÃO são os iniciais
-        // Se o usuário ACABOU de importar dados (importamos no Config e o sync rodou), 
-        // e ele der refresh muito rápido, o Firestore pode estar indexando.
-        // Mas se a importação foi via migrateToCloud, o Firestore já deveria ter.
-        
-        setData({
-          profissionais: [],
-          producao: [],
-          receitasExtras: [],
-          gastos: [],
-          parametros: [],
-          meetingNotes: [],
-          planejamento: [],
-          categoriasGastos: MOCK_DATA.categoriasGastos
+        console.log("App: Nenhum dado Cloud encontrado. Mantendo dados atuais ou MOCK.");
+        // Se já temos dados no state (ex: o usuário acabou de importar), não limpamos.
+        // Verificamos se o estado atual é o MOCK_DATA ou se já é algo novo.
+        setData(prev => {
+          const isInitial = prev.profissionais.length === MOCK_DATA.profissionais.length && 
+                           prev.profissionais[0]?.nome === MOCK_DATA.profissionais[0]?.nome;
+          
+          if (isInitial) {
+             console.log("App: Estado atual é o MOCK, mantendo.");
+             return prev;
+          }
+          console.log("App: Estado atual já possui dados (possível importação recente), evitando limpeza.");
+          return prev;
         });
         
         const localDataStr = localStorage.getItem('barber_bi_data');
