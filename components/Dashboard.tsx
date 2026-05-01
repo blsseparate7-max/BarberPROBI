@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Cell as BarCell } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Cell as BarCell, Legend } from 'recharts';
 import { AppData } from '../types';
 import { DollarSign, Crown, ArrowDownCircle, Wallet, UserCheck, Target, Scissors, TrendingUp, ChevronRight, Award } from 'lucide-react';
 
@@ -49,17 +49,24 @@ const Dashboard: React.FC<DashboardProps> = ({ data, year }) => {
 
     const meses = Array.from({ length: 12 }, (_, i) => {
       const mes = i + 1;
-      const pMes = producaoAno.filter(p => p.mes === mes);
-      const rMes = receitasAno.find(r => r.mes === mes);
-      const prodMes = pMes.reduce((s, c) => s + c.producaoBruta, 0);
-      const totalMes = prodMes + (rMes ? (rMes.pacotes + rMes.assinaturas + rMes.geladeira + rMes.dinheiro + rMes.cartao + rMes.pix) : 0);
-      const repMes = pMes.reduce((s, c) => s + c.repasseProfissional + c.repasseAssinatura, 0);
-      const gMes = gastosAno.filter(g => g.mes === mes).reduce((s, c) => s + c.valor, 0);
+      const pMes = (producaoAno || []).filter(p => p.mes === mes);
+      const rMes = (receitasAno || []).find(r => r.mes === mes);
+      const prodServices = pMes.reduce((s, c) => s + c.producaoBruta, 0);
+      const subRevenue = rMes ? rMes.assinaturas : 0;
+      const otherRevenue = rMes ? (rMes.pacotes + rMes.geladeira + rMes.dinheiro + rMes.cartao + rMes.pix) : 0;
+      const totalMes = prodServices + subRevenue + otherRevenue;
       
+      const repMes = pMes.reduce((s, c) => s + c.repasseProfissional + c.repasseAssinatura, 0);
+      const gMes = (gastosAno || []).filter(g => g.mes === mes).reduce((s, c) => s + c.valor, 0);
+      
+      const percentSub = totalMes > 0 ? (subRevenue / totalMes) * 100 : 0;
+
       return { 
         name: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][i], 
         Faturamento: totalMes,
-        ProducaoReal: prodMes,
+        Servicos: prodServices,
+        Assinaturas: subRevenue,
+        PercentAssinatura: percentSub,
         Lucro: totalMes - repMes - gMes
       };
     });
@@ -114,11 +121,18 @@ const Dashboard: React.FC<DashboardProps> = ({ data, year }) => {
 
     const melhorMes = [...meses].sort((a, b) => b.Lucro - a.Lucro)[0];
 
+    // Calculo adicional de participação de assinaturas
+    const mesReferencia = meses[ultimoMesComDados - 1];
+    const percentSubMesAtual = mesReferencia?.Faturamento > 0 
+      ? (mesReferencia.Assinaturas / mesReferencia.Faturamento) * 100 
+      : 0;
+
     return { 
       faturamentoTotal, faturamentoAssinaturas, saidaTotal, saldoFinal, 
       melhorMes, metaAnual, metaProducaoAnual, faturamentoServicos, meses, 
       metaMensalOperacional, performanceIndividuais, ultimoMesComDados,
-      producaoMesAtual, faltaParaMetaAnual, mediaMensalNecessaria, rankingAnual, alertas
+      producaoMesAtual, faltaParaMetaAnual, mediaMensalNecessaria, rankingAnual, alertas,
+      percentSubMesAtual
     };
   }, [data, year]);
 
@@ -126,7 +140,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, year }) => {
     faturamentoTotal, faturamentoAssinaturas, saidaTotal, saldoFinal, 
     melhorMes, metaAnual, metaProducaoAnual, faturamentoServicos, meses, 
     metaMensalOperacional, performanceIndividuais, ultimoMesComDados,
-    producaoMesAtual, faltaParaMetaAnual, mediaMensalNecessaria, rankingAnual, alertas
+    producaoMesAtual, faltaParaMetaAnual, mediaMensalNecessaria, rankingAnual, alertas,
+    percentSubMesAtual
   } = calculations;
 
   const dataMetaAnual = [
@@ -136,9 +151,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, year }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-32">
-      <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <MetricCard label="Faturamento Ano" value={`R$ ${(faturamentoTotal || 0).toLocaleString('pt-BR')}`} icon={DollarSign} color="text-blue-600" bg="bg-blue-50" />
         <MetricCard label="Produção Mês" value={`R$ ${(producaoMesAtual || 0).toLocaleString('pt-BR')}`} icon={Scissors} color="text-indigo-600" bg="bg-indigo-50" />
+        <MetricCard label="Partic. Assinaturas" value={`${(percentSubMesAtual || 0).toFixed(1)}%`} icon={UserCheck} color="text-purple-600" bg="bg-purple-50" />
         <MetricCard label="Falta para Meta" value={`R$ ${(faltaParaMetaAnual || 0).toLocaleString('pt-BR')}`} icon={Target} color="text-red-500" bg="bg-red-50" />
         <MetricCard label="Média p/ Meta" value={`R$ ${(mediaMensalNecessaria || 0).toLocaleString('pt-BR')}`} icon={TrendingUp} color="text-emerald-500" bg="bg-emerald-50" />
         <MetricCard label="Mês Destaque" value={melhorMes?.name} icon={Crown} color="text-amber-500" bg="bg-amber-50" />
@@ -252,8 +268,17 @@ const Dashboard: React.FC<DashboardProps> = ({ data, year }) => {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 'bold' }} />
               <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 'bold' }} tickFormatter={(value) => `R$ ${value / 1000}k`} />
-              <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }} formatter={(value: any) => value != null ? `R$ ${Number(value).toLocaleString('pt-BR')}` : ''} />
-              <Bar dataKey="ProducaoReal" fill="#2563eb" radius={[10, 10, 0, 0]} barSize={40} />
+              <Tooltip 
+                cursor={{ fill: '#f8fafc' }} 
+                contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }} 
+                formatter={(value: any, name: string) => {
+                  if (name === 'PercentAssinatura') return [`${Number(value).toFixed(1)}%`, 'Partic. Assinaturas'];
+                  return [`R$ ${Number(value).toLocaleString('pt-BR')}`, name];
+                }} 
+              />
+              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+              <Bar dataKey="Servicos" name="Serviços" fill="#2563eb" radius={[6, 6, 0, 0]} barSize={25} />
+              <Bar dataKey="Assinaturas" name="Assinaturas" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={25} />
               <ReferenceLine y={metaMensalOperacional} stroke="#f87171" strokeDasharray="5 5" strokeWidth={2} label={{ position: 'right', value: 'META OP.', fill: '#ef4444', fontSize: 10, fontWeight: 'black' }} />
             </BarChart>
           </ResponsiveContainer>

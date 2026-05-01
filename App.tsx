@@ -163,11 +163,23 @@ const App: React.FC = () => {
     }
   }, [user]);
 
-  const updateDataAndSync = useCallback((newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => {
-    setData(prev => {
-      const updated = typeof newData === 'function' ? newData(prev) : newData;
-      syncToCloud(updated, specificSync);
-      return updated;
+  const updateDataAndSync = useCallback(async (newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => {
+    return new Promise<void>((resolve, reject) => {
+      setData(prev => {
+        const updated = typeof newData === 'function' ? newData(prev) : newData;
+        
+        // Use an internal async function to handle sync
+        (async () => {
+          try {
+            await syncToCloud(updated, specificSync);
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        })();
+
+        return updated;
+      });
     });
   }, [syncToCloud]);
 

@@ -250,56 +250,66 @@ export const loadAppData = async (): Promise<Partial<AppData>> => {
 // --- Migration ---
 export const migrateToCloud = async (localData: AppData) => {
   const userId = getUserId();
-  const batch = writeBatch(db);
-
+  
   // Helper to get doc ref
   const getDocRef = (coll: string, id: string) => doc(db, `users/${userId}/${coll}`, id);
 
+  const operations: { ref: any, data: any }[] = [];
+
   // Profissionais
   localData.profissionais.forEach(p => {
-    batch.set(getDocRef('profissionais', p.id), p);
+    operations.push({ ref: getDocRef('profissionais', p.id), data: p });
   });
 
   // Produção
   localData.producao.forEach(p => {
     const id = `${p.ano}_${p.mes}_${p.profissionalId}`;
-    batch.set(getDocRef('producao_mensal', id), p);
+    operations.push({ ref: getDocRef('producao_mensal', id), data: p });
   });
 
   // Receitas
   localData.receitasExtras.forEach(r => {
     const id = `${r.ano}_${r.mes}`;
-    batch.set(getDocRef('receitas_extras_mensal', id), r);
+    operations.push({ ref: getDocRef('receitas_extras_mensal', id), data: r });
   });
 
   // Gastos
   localData.gastos.forEach(g => {
     const id = `${g.ano}_${g.mes}_${g.categoria.replace(/\//g, '_')}`;
-    batch.set(getDocRef('gastos_mensal', id), g);
+    operations.push({ ref: getDocRef('gastos_mensal', id), data: g });
   });
 
   // Metas
   localData.parametros.forEach(p => {
     const id = `${p.ano}`;
-    batch.set(getDocRef('metas', id), p);
+    operations.push({ ref: getDocRef('metas', id), data: p });
   });
 
   // Notes
   localData.meetingNotes.forEach(n => {
-    batch.set(getDocRef('feedbacks_reuniao', n.id), n);
+    operations.push({ ref: getDocRef('feedbacks_reuniao', n.id), data: n });
   });
 
   // Planning
   if (localData.planejamento) {
     localData.planejamento.forEach(p => {
       const id = `${p.ano}_${p.mes}`;
-      batch.set(getDocRef('planejamento', id), p);
+      operations.push({ ref: getDocRef('planejamento', id), data: p });
     });
   }
 
-  try {
-    await batch.commit();
-  } catch (err) {
-    handleFirestoreError(err, OperationType.WRITE, `users/${userId} (batch migration)`);
+  // Execute in batches of 500
+  const CHUNK_SIZE = 450; // Safety margin
+  for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
+    const chunk = operations.slice(i, i + CHUNK_SIZE);
+    const batch = writeBatch(db);
+    chunk.forEach(op => batch.set(op.ref, op.data));
+    
+    try {
+      await batch.commit();
+      console.log(`dataService: Batch ${i / CHUNK_SIZE + 1} commitado com sucesso.`);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `users/${userId} (batch migration chunk ${i})`);
+    }
   }
 };

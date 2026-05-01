@@ -5,7 +5,7 @@ import { CalendarPlus, Save, Trash2, Download, Upload, ShieldCheck, Plus, X, Che
 
 interface ConfigProps {
   data: AppData;
-  setData: (newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => void;
+  setData: (newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => void | Promise<void>;
   selectedYear: number;
   setSelectedYear: (year: number) => void;
 }
@@ -43,17 +43,108 @@ const Config: React.FC<ConfigProps> = ({ data, setData, selectedYear, setSelecte
     linkElement.click();
   };
 
-  const importBackup = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const [isImporting, setIsImporting] = useState(false);
+
+  const importBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const json = JSON.parse(e.target?.result as string);
-        if (json.profissionais && confirm('Substituir dados atuais pelo backup?')) {
-          setData(json);
+        const json = JSON.parse(e.target?.result as string) as AppData;
+        
+        // 1. Validação Básica
+        if (!json.profissionais || !Array.isArray(json.profissionais)) {
+          throw new Error('Arquivo de backup inválido: Coleção de profissionais não encontrada.');
         }
-      } catch (err) { alert('Erro ao ler arquivo.'); }
+
+        if (!confirm('Esta ação irá substituir os dados atuais pelos dados do backup. Deseja continuar?')) {
+          return;
+        }
+
+        setIsImporting(true);
+
+        // 2. Normalização e Regeneração de IDs
+        const idMap: Record<string, string> = {};
+        const normalizedData: AppData = {
+          parametros: (json.parametros || []).map(p => ({
+            ano: Number(p.ano),
+            metaFaturamento: Number(p.metaFaturamento || 0),
+            metaLucro: Number(p.metaLucro || 0),
+            metaAssinaturas: Number(p.metaAssinaturas || 0),
+            metaGeladeira: Number(p.metaGeladeira || 0),
+            metaGastos: Number(p.metaGastos || 0),
+            metaPorCadeira: Number(p.metaPorCadeira || 0)
+          })),
+          profissionais: (json.profissionais || []).map(p => {
+            const newId = Math.random().toString(36).substring(2, 11);
+            idMap[p.id] = newId;
+            return {
+              ...p,
+              id: newId,
+              comissao: Number(p.comissao || 0),
+              cadeira: Number(p.cadeira || 0),
+              metaMensal: p.metaMensal ? Number(p.metaMensal) : undefined
+            };
+          }),
+          producao: (json.producao || []).map(p => ({
+            ...p,
+            ano: Number(p.ano),
+            mes: Number(p.mes),
+            profissionalId: idMap[p.profissionalId] || p.profissionalId,
+            producaoBruta: Number(p.producaoBruta || 0),
+            repasseProfissional: Number(p.repasseProfissional || 0),
+            repasseAssinatura: Number(p.repasseAssinatura || 0),
+            recebidoPelaCasa: Number(p.recebidoPelaCasa || 0),
+            vendasProdutos: Number(p.vendasProdutos || 0),
+            quantidadeAtendimentos: Number(p.quantidadeAtendimentos || 0)
+          })),
+          receitasExtras: (json.receitasExtras || []).map(r => ({
+            ...r,
+            ano: Number(r.ano),
+            mes: Number(r.mes),
+            dinheiro: Number(r.dinheiro || 0),
+            cartao: Number(r.cartao || 0),
+            pix: Number(r.pix || 0),
+            assinaturas: Number(r.assinaturas || 0),
+            pacotes: Number(r.pacotes || 0),
+            geladeira: Number(r.geladeira || 0),
+            outras: Number(r.outras || 0)
+          })),
+          gastos: (json.gastos || []).map(g => ({
+            ...g,
+            ano: Number(g.ano),
+            mes: Number(g.mes),
+            valor: Number(g.valor || 0)
+          })),
+          meetingNotes: (json.meetingNotes || []).map(n => ({
+            ...n,
+            id: Math.random().toString(36).substring(2, 11),
+            profissionalId: idMap[n.profissionalId] || n.profissionalId,
+            ano: Number(n.ano)
+          })),
+          categoriasGastos: json.categoriasGastos || [
+            'PRODUTOS', 'ALUGUEL', 'ENERGIA', 'ÁGUA', 'INTERNET', 'MARKETING', 'REPAROS', 'SISTEMAS', 'OUTROS'
+          ],
+          planejamento: (json.planejamento || []).map(p => ({
+            ...p,
+            ano: Number(p.ano),
+            mes: Number(p.mes)
+          }))
+        };
+
+        // 3. Sincronização Segura
+        await setData(normalizedData);
+        alert('Importação concluída com sucesso!');
+        
+      } catch (err) {
+        console.error('Erro na importação:', err);
+        alert(`Erro ao importar dados: ${err instanceof Error ? err.message : 'Arquivo corrompido.'}`);
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
     };
     reader.readAsText(file);
   };
@@ -288,11 +379,17 @@ const Config: React.FC<ConfigProps> = ({ data, setData, selectedYear, setSelecte
               </div>
             </div>
           </button>
-          <button onClick={() => fileInputRef.current?.click()} className="bg-white/5 hover:bg-white/10 border border-white/10 p-8 rounded-[32px] flex items-center justify-between transition-all group">
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            disabled={isImporting}
+            className={`bg-white/5 hover:bg-white/10 border border-white/10 p-8 rounded-[32px] flex items-center justify-between transition-all group ${isImporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
             <div className="flex items-center gap-5">
-              <div className="p-4 bg-emerald-500/20 text-emerald-400 rounded-2xl group-hover:scale-110 transition-transform"><Upload size={24} /></div>
+              <div className="p-4 bg-emerald-500/20 text-emerald-400 rounded-2xl group-hover:scale-110 transition-transform">
+                {isImporting ? <RefreshCw size={24} className="animate-spin" /> : <Upload size={24} />}
+              </div>
               <div className="text-left">
-                <p className="font-black text-sm">RESTAURAR SISTEMA</p>
+                <p className="font-black text-sm uppercase">{isImporting ? 'IMPORTANDO...' : 'RESTAURAR SISTEMA'}</p>
                 <p className="text-[9px] text-slate-400 uppercase mt-1">Carregar dados externos</p>
               </div>
             </div>

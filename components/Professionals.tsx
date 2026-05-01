@@ -5,7 +5,7 @@ import { Plus, Trash2, X, Edit3, Scissors, UserPlus, Save, Target, UserMinus, Us
 
 interface ProfessionalsProps {
   data: AppData;
-  setData: React.Dispatch<React.SetStateAction<AppData>>;
+  setData: (newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => void | Promise<void>;
   year: number;
 }
 

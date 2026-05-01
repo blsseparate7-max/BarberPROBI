@@ -27,7 +27,7 @@ import {
 
 interface MeetingsProps {
   data: AppData;
-  setData: (newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => void;
+  setData: (newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => void | Promise<void>;
   year: number;
 }
 
