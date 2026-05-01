@@ -48,7 +48,21 @@ const CashFlow: React.FC<CashFlowProps> = ({ data, setData, year }) => {
 
   const handleUpdateMetaAnual = (val: number) => {
     const p = data.parametros.find(x => x.ano === year);
-    if (!p) return;
+    
+    if (!p) {
+      // Se não existe o parâmetro para o ano, cria um novo
+      const newParam: ParametrosAnuais = {
+        ano: year,
+        metaFaturamento: val,
+        metaPorCadeira: 0
+      };
+      setData(prev => ({
+        ...prev,
+        parametros: [...prev.parametros, newParam]
+      }), { type: 'parametro', payload: newParam });
+      return;
+    }
+
     const updated = { ...p, metaFaturamento: val };
     setData(prev => ({
       ...prev,

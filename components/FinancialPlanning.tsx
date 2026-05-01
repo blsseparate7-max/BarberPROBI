@@ -64,6 +64,10 @@ const FinancialPlanning: React.FC<FinancialPlanningProps> = ({ data, setData }) 
 
     const totalProducao = monthData.producao.reduce((acc, p) => acc + p.producaoBruta, 0);
     const totalGastos = monthData.gastos.reduce((acc, g) => acc + g.valor, 0);
+    const totalRepasses = monthData.producao.reduce((acc, p) => 
+      acc + p.repasseProfissional + p.repasseAssinatura + (p.vendasProdutosComissao || 0), 0);
+    const totalSaidas = totalGastos + totalRepasses;
+
     const totalExtras = monthData.receitas.reduce((acc, r) => 
       acc + r.dinheiro + r.cartao + r.pix + r.assinaturas + r.pacotes + r.geladeira + r.outras, 0);
     
@@ -71,7 +75,15 @@ const FinancialPlanning: React.FC<FinancialPlanningProps> = ({ data, setData }) 
     const prevFaturamento = prevMonthData.producao.reduce((acc, p) => acc + p.producaoBruta, 0) + 
                           prevMonthData.receitas.reduce((acc, r) => acc + r.dinheiro + r.cartao + r.pix + r.assinaturas + r.pacotes + r.geladeira + r.outras, 0);
 
-    const resultado = faturamentoTotal - totalGastos;
+    const resultado = faturamentoTotal - totalSaidas;
+
+    console.log('--- Financial Planning Debug ---');
+    console.log('Mês/Ano:', selectedMonth, selectedYear);
+    console.log('Faturamento Total:', faturamentoTotal);
+    console.log('Gastos Diretos:', totalGastos);
+    console.log('Repasses Profissionais:', totalRepasses);
+    console.log('Total Saídas:', totalSaidas);
+    console.log('Resultado (Lucro/Prejuízo):', resultado);
     const crescimento = prevFaturamento > 0 ? ((faturamentoTotal - prevFaturamento) / prevFaturamento) * 100 : 0;
 
     const ranking = [...monthData.producao]
@@ -95,6 +107,8 @@ const FinancialPlanning: React.FC<FinancialPlanningProps> = ({ data, setData }) 
     return {
       totalProducao,
       totalGastos,
+      totalRepasses,
+      totalSaidas,
       faturamentoTotal,
       resultado,
       ranking,
@@ -224,11 +238,11 @@ const FinancialPlanning: React.FC<FinancialPlanningProps> = ({ data, setData }) 
                   <span className="text-sm font-black tracking-tighter">R$ {stats.faturamentoTotal.toLocaleString('pt-BR')}</span>
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-white/5">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Gastos Mês</span>
-                  <span className="text-sm font-black tracking-tighter text-red-400">R$ {stats.totalGastos.toLocaleString('pt-BR')}</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase">Saídas Totais</span>
+                  <span className="text-sm font-black tracking-tighter text-red-400">R$ {stats.totalSaidas.toLocaleString('pt-BR')}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Margem Real</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase">Margem Líquida</span>
                   <span className={`text-sm font-black tracking-tighter ${stats.resultado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {stats.faturamentoTotal > 0 ? ((stats.resultado / stats.faturamentoTotal) * 100).toFixed(1) : 0}%
                   </span>
