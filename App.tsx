@@ -80,10 +80,18 @@ const App: React.FC = () => {
     if (!user) return;
     console.log("App: Buscando dados para o usuário:", user.email);
     setDataLoading(true);
+    setSyncStatus('syncing');
+    
     try {
       const cloudData = await loadAppData();
-      console.log("App: Dados carregados da nuvem com sucesso.");
-      const hasCloudData = (cloudData.profissionais?.length ?? 0) > 0 || (cloudData.parametros?.length ?? 0) > 0;
+      console.log("App: Dados carregados da nuvem. Analisando integridade...");
+      
+      // Consider cloud data valid if there are professionals OR parameters OR production records
+      const hasCloudData = 
+        (cloudData.profissionais?.length ?? 0) > 0 || 
+        (cloudData.parametros?.length ?? 0) > 0 ||
+        (cloudData.producao?.length ?? 0) > 0;
+
       const localDataStr = localStorage.getItem('barber_bi_data');
       
       if (!hasCloudData && localDataStr) {
@@ -91,8 +99,7 @@ const App: React.FC = () => {
       }
 
       if (hasCloudData) {
-        setData(prev => ({
-          ...prev,
+        setData({
           profissionais: cloudData.profissionais || [],
           producao: cloudData.producao || [],
           receitasExtras: cloudData.receitasExtras || [],
@@ -100,11 +107,16 @@ const App: React.FC = () => {
           parametros: cloudData.parametros || [],
           meetingNotes: cloudData.meetingNotes || [],
           planejamento: cloudData.planejamento || [],
-          categoriasGastos: prev.categoriasGastos // This is usually constant
-        }));
+          categoriasGastos: MOCK_DATA.categoriasGastos // Use categories from constants
+        });
+        setSyncStatus('synced');
+        setLastSaved(new Date().toLocaleTimeString());
+      } else {
+        console.log("App: Nenhumm dado encontrado na nuvem para este usuário. Mantendo mocks.");
+        setSyncStatus('synced');
       }
     } catch (err) {
-      console.error("Erro ao carregar dados:", err);
+      console.error("App: Falha crítica ao carregar dados do Firestore:", err);
       setSyncStatus('error');
     } finally {
       setDataLoading(false);
@@ -164,23 +176,34 @@ const App: React.FC = () => {
   }, [user]);
 
   const updateDataAndSync = useCallback(async (newData: AppData | ((prev: AppData) => AppData), specificSync?: { type: string, payload: any }) => {
-    return new Promise<void>((resolve, reject) => {
-      setData(prev => {
-        const updated = typeof newData === 'function' ? newData(prev) : newData;
-        
-        // Use an internal async function to handle sync
-        (async () => {
-          try {
-            await syncToCloud(updated, specificSync);
-            resolve();
-          } catch (err) {
-            reject(err);
-          }
-        })();
-
-        return updated;
+    setSyncStatus('syncing');
+    
+    try {
+      // 1. Calculate updated data
+      let updatedData: AppData;
+      
+      // We perform a sync update first to get the result
+      await new Promise<void>((resolve) => {
+        setData(prev => {
+          updatedData = typeof newData === 'function' ? newData(prev) : newData;
+          resolve();
+          return updatedData;
+        });
       });
-    });
+
+      // @ts-ignore - updatedData is assigned in the promise
+      const dataToSync = updatedData;
+
+      // 2. Perform background sync
+      await syncToCloud(dataToSync, specificSync);
+      
+      setSyncStatus('synced');
+      setLastSaved(new Date().toLocaleTimeString());
+    } catch (err) {
+      console.error("App: Erro crítico no updateDataAndSync:", err);
+      setSyncStatus('error');
+      throw err; // Re-throw to caller (like Config.tsx)
+    }
   }, [syncToCloud]);
 
   const handleMigration = async () => {
