@@ -199,6 +199,7 @@ export const savePlanning = async (p: PlanningData) => {
 
 // --- Load all data ---
 export const loadAppData = async (userId: string): Promise<Partial<AppData>> => {
+  console.log(`dataService: Iniciando loadAppData para o UID: [${userId}]`);
   const data: Partial<AppData> = {
     profissionais: [],
     producao: [],
