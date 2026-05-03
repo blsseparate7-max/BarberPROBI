@@ -117,6 +117,21 @@
         "lastUpdated": { "type": "string" }
       },
       "required": ["ano", "mes", "caixaDisponivel", "totalDividas", "parcelasMensais"]
+    },
+    "AIFeedback": {
+      "title": "Feedback IA",
+      "description": "Histórico de feedbacks gerados pela IA para reuniões",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ano": { "type": "number" },
+        "mes": { "type": "number" },
+        "profissionalId": { "type": "string" },
+        "conteudo": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "tipo": { "type": "string", "enum": ["individual", "geral"] }
+      },
+      "required": ["id", "ano", "mes", "conteudo", "timestamp", "tipo"]
     }
   },
   "firestore": {
@@ -147,6 +162,10 @@
     "users/{userId}/planejamento": {
       "schema": "PlanningData",
       "description": "Coleção de planejamento financeiro por usuário"
+    },
+    "users/{userId}/ai_feedbacks": {
+      "schema": "AIFeedback",
+      "description": "Histórico de feedbacks da IA por usuário"
     }
   }
 }

@@ -17,7 +17,8 @@ import {
   GastoMensal, 
   ParametrosAnuais, 
   MeetingNote,
-  PlanningData
+  PlanningData,
+  AIFeedback
 } from '../types.ts';
 
 enum OperationType {
@@ -214,6 +215,16 @@ export const savePlanning = async (p: PlanningData) => {
   }
 };
 
+// --- AI Feedbacks ---
+export const saveAIFeedback = async (f: AIFeedback) => {
+  const path = `users/${getUserId()}/ai_feedbacks`;
+  try {
+    await setDoc(doc(db, path, f.id), f);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `${path}/${f.id}`);
+  }
+};
+
 // --- Load all data ---
 export const loadAppData = async (userId: string): Promise<Partial<AppData>> => {
   console.log(`[FirestoreService] Carregando dados para o usuário: ${userId}`);
@@ -225,7 +236,8 @@ export const loadAppData = async (userId: string): Promise<Partial<AppData>> => 
     gastos: [],
     parametros: [],
     meetingNotes: [],
-    planejamento: []
+    planejamento: [],
+    aiFeedbacks: []
   };
 
   const collections = [
@@ -236,6 +248,7 @@ export const loadAppData = async (userId: string): Promise<Partial<AppData>> => 
     { key: 'parametros', path: `users/${userId}/metas` },
     { key: 'meetingNotes', path: `users/${userId}/feedbacks_reuniao` },
     { key: 'planejamento', path: `users/${userId}/planejamento` },
+    { key: 'aiFeedbacks', path: `users/${userId}/ai_feedbacks` },
     { key: 'config', path: `users/${userId}/config` }
   ];
 
@@ -335,6 +348,13 @@ export const migrateToCloud = async (localData: AppData) => {
     localData.planejamento.forEach(p => {
       const id = `${p.ano}_${p.mes}`;
       operations.push({ ref: getDocRef('planejamento', id), data: p });
+    });
+  }
+
+  // AI Feedbacks
+  if (localData.aiFeedbacks) {
+    localData.aiFeedbacks.forEach(f => {
+      operations.push({ ref: getDocRef('ai_feedbacks', f.id), data: f });
     });
   }
 

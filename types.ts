@@ -93,6 +93,16 @@ export interface PlanningData {
   analiseIA?: string;
 }
 
+export interface AIFeedback {
+  id: string;
+  ano: number;
+  mes: number;
+  profissionalId?: string; // empty for general
+  conteudo: string;
+  timestamp: string;
+  tipo: 'individual' | 'geral';
+}
+
 export interface AppData {
   geminiKey?: string;
   parametros: ParametrosAnuais[];
@@ -103,4 +113,5 @@ export interface AppData {
   meetingNotes: MeetingNote[];
   categoriasGastos: string[];
   planejamento: PlanningData[];
+  aiFeedbacks?: AIFeedback[];
 }

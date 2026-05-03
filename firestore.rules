@@ -10,7 +10,7 @@ service cloud.firestore {
 
     // Permissão para o check de conectividade (Test Path)
     match /test/connection {
-      allow read: if request.auth != null;
+      allow read: if true;
     }
 
     // Isolamento Profissional por UID

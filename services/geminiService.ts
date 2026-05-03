@@ -19,46 +19,65 @@ export const generateFinancialAnalysis = async (
   const finalApiKey = apiKey || process.env.GEMINI_API_KEY;
   const ai = new GoogleGenAI({ apiKey: finalApiKey! });
 
-  const totalProducao = monthData.producao.reduce((acc, p) => acc + p.producaoBruta, 0);
-  const totalGastos = monthData.gastos.reduce((acc, g) => acc + g.valor, 0);
-  const totalReceitasExtras = monthData.receitas.reduce((acc, r) => 
+  // Métricas do Mês
+  const totalProducaoMes = monthData.producao.reduce((acc, p) => acc + p.producaoBruta, 0);
+  const totalGastosMes = monthData.gastos.reduce((acc, g) => acc + g.valor, 0);
+  const totalReceitasExtrasMes = monthData.receitas.reduce((acc, r) => 
     acc + r.dinheiro + r.cartao + r.pix + r.assinaturas + r.pacotes + r.geladeira + r.outras, 0);
+  const faturamentoTotalMes = totalProducaoMes + totalReceitasExtrasMes;
   
-  const faturamentoTotal = totalProducao + totalReceitasExtras;
-  const resultado = faturamentoTotal - totalGastos;
+  // Métricas do Ano
+  const producaoAno = (annualData.producao || []).filter(p => p.ano === year);
+  const receitasAno = (annualData.receitasExtras || []).filter(r => r.ano === year);
+  const gastosAno = (annualData.gastos || []).filter(g => g.ano === year);
   
+  const faturamentoTotalAno = producaoAno.reduce((acc, p) => acc + p.producaoBruta + (p.vendasProdutos || 0), 0) +
+    receitasAno.reduce((acc, r) => acc + r.dinheiro + r.cartao + r.pix + r.assinaturas + r.pacotes + r.geladeira + r.outras, 0);
+  
+  const totalGastosAno = gastosAno.reduce((acc, g) => acc + g.valor, 0) +
+    producaoAno.reduce((acc, p) => acc + p.repasseProfissional + p.repasseAssinatura + (p.vendasProdutosComissao || 0), 0);
+
   const metaAnual = annualData.parametros.find(p => p.ano === year);
   
-  const rankingBarbeiros = [...monthData.producao]
-    .sort((a, b) => b.producaoBruta - a.producaoBruta)
-    .map((p, i) => `${i+1}. B${p.profissionalId.substring(0,4)}: R$ ${p.producaoBruta.toLocaleString('pt-BR')}`);
+  const rankingBarbeiros = [...annualData.profissionais]
+    .map(prof => {
+      const prodProf = producaoAno.filter(p => p.profissionalId === prof.id).reduce((acc, p) => acc + p.producaoBruta, 0);
+      return { nome: prof.nome, prod: prodProf };
+    })
+    .sort((a, b) => b.prod - a.prod)
+    .slice(0, 3)
+    .map((p, i) => `${i+1}. ${p.nome}: R$ ${p.prod.toLocaleString('pt-BR')}`);
 
   const prompt = `
-    Atue como um Gestor Estratégico Expert em Barbearias. Sua missão é dar clareza e direção para o dono do negócio baseado nos dados reais de ${month}/${year}.
+    Atue como um mentor e estrategista de negócios senior para Barbearias Premium. Você tem formação em Psicanálise (gestão de pessoas), Vendas e Experiência do Cliente, com base bíblica de prosperidade.
 
-    DADOS DO MÊS:
-    - Faturamento Total: R$ ${faturamentoTotal.toLocaleString('pt-BR')} (Serviços + Extras)
-    - Gastos Totais: R$ ${totalGastos.toLocaleString('pt-BR')}
-    - Resultado Líquido: R$ ${resultado.toLocaleString('pt-BR')}
-    - Percentual de Gasto sobre Faturamento: ${((totalGastos / faturamentoTotal) * 100).toFixed(1)}%
+    OBJETIVO: Gerar um Diagnóstico Estratégico Anual para a barbearia referente ao ano de ${year}.
 
-    METAS (SE EXISTIREM):
-    - Meta Mensal Sugerida (Faturamento): R$ ${metaAnual ? metaAnual.metaFaturamento.toLocaleString('pt-BR') : 'Não definida'}
-    - Meta Mensal Máxima (Gastos): R$ ${metaAnual ? metaAnual.metaGastos.toLocaleString('pt-BR') : 'Não definida'}
+    DADOS DO ANO ATÉ O MOMENTO (MÊS ${month}):
+    - Faturamento Acumulado: R$ ${faturamentoTotalAno.toLocaleString('pt-BR')}
+    - Gastos/Saídas Totais: R$ ${totalGastosAno.toLocaleString('pt-BR')}
+    - Lucro Líquido Acumulado: R$ ${(faturamentoTotalAno - totalGastosAno).toLocaleString('pt-BR')}
+    - Meta do Ano: R$ ${metaAnual ? metaAnual.metaFaturamento.toLocaleString('pt-BR') : 'Não definida'}
 
-    RANKING DE PRODUÇÃO DOS BARBEIROS:
+    DADOS DO MÊS ATUAL (${month}/${year}):
+    - Faturamento: R$ ${faturamentoTotalMes.toLocaleString('pt-BR')}
+    - Gastos: R$ ${totalGastosMes.toLocaleString('pt-BR')}
+
+    TOP 3 BARBEIROS (PRODUÇÃO ANUAL):
     ${rankingBarbeiros.join('\n')}
 
-    POR FAVOR, GERE UMA ANÁLISE ESTRATÉGICA DIRETA:
-    1. DIAGNÓSTICO DO MÊS: Classifique o momento entre Pressão Financeira, Estável ou Crescimento. Explique o porquê.
-    2. ANÁLISE DE GARGALOS E OPORTUNIDADES: Onde está o perigo (ex: dependência de um barbeiro, gastos altos) e onde está a chance de ganhar mais.
-    3. PROJEÇÃO: Se o ritmo continuar assim, qual a visão para os próximos meses?
-    4. PLANO DE AÇÃO: O que o dono deve fazer nos próximos 30 dias, 90 dias e até o fim do ano.
-    5. DIREÇÃO FINANCEIRA: Decisão prática (ex: "Reduzir gastos agora", "Investir em marketing", "Evitar retiradas excessivas").
-    6. RESUMO EXECUTIVO (TEXTO PRONTO PARA O DONO): Um parágrafo curto e potente para tomada de decisão imediata.
+    ESTILO DA RESPOSTA: Mentor sênior, autoridade, direto ao ponto, confrontador mas encorajador.
 
-    Importante: Não invente números. Fale como um consultor sênior. Use Markdown para formatar.
+    ESTRUTURA OBRIGATÓRIA:
+    1. DIAGNÓSTICO DO ANO: Como o negócio está caminhando em relação à meta anual.
+    2. PONTO CEGO: Onde o dinheiro está fugindo ou o que o dono não está vendo.
+    3. OPORTUNIDADE DE OURO: Onde focar nos próximos meses para maximizar o lucro.
+    4. CUIDADO COM O TIME: Insight sobre a equipe baseado no ranking.
+    5. PRINCÍPIO BÍBLICO: Uma palavra de sabedoria sobre gestão e abundância.
+
+    REGRAS: Use apenas dados reais. Seja curto e grosso.
   `;
+
 
   try {
     const response = await ai.models.generateContent({

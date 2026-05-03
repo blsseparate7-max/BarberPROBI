@@ -32,6 +32,7 @@ const App: React.FC = () => {
     parametros: [],
     meetingNotes: [],
     planejamento: [],
+    aiFeedbacks: [],
     categoriasGastos: []
   });
   const [lastSaved, setLastSaved] = useState<string>('');
@@ -60,6 +61,7 @@ const App: React.FC = () => {
           parametros: [],
           meetingNotes: [],
           planejamento: [],
+          aiFeedbacks: [],
           categoriasGastos: []
         });
         setActiveTab('dashboard');
@@ -91,6 +93,7 @@ const App: React.FC = () => {
         receitas: cloudData.receitasExtras?.length ?? 0,
         gastos: cloudData.gastos?.length ?? 0,
         planning: cloudData.planejamento?.length ?? 0,
+        aiFeedbacks: cloudData.aiFeedbacks?.length ?? 0,
         categorias: cloudData.categoriasGastos?.length ?? 0
       };
       
@@ -106,6 +109,7 @@ const App: React.FC = () => {
           parametros: cloudData.parametros || [],
           meetingNotes: cloudData.meetingNotes || [],
           planejamento: cloudData.planejamento || [],
+          aiFeedbacks: cloudData.aiFeedbacks || [],
           categoriasGastos: cloudData.categoriasGastos || []
         });
         setSyncStatus('synced');
@@ -173,6 +177,7 @@ const App: React.FC = () => {
           case 'fechamento_mes': await saveFechamentoMes(payload); break;
           case 'note': await saveMeetingNote(payload); break;
           case 'delete_note': await deleteMeetingNote(payload); break;
+          case 'ai_feedback': await saveAIFeedback(payload); break;
           case 'planning': await savePlanning(payload); break;
           default: 
             await migrateToCloud(updated);

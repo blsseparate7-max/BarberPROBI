@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
-import { AppData, MeetingNote } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { AppData, MeetingNote, AIFeedback } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { 
   MessageSquare, 
@@ -34,6 +34,7 @@ interface MeetingsProps {
 const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
   const [activeSubTab, setActiveSubTab] = useState<'individual' | 'geral'>('individual');
   const [selectedProfId, setSelectedProfId] = useState(data.profissionais[0]?.id || '');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [newNote, setNewNote] = useState('');
   const [weeklyNote, setWeeklyNote] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -42,6 +43,21 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
 
   const selectedProf = data.profissionais.find(p => p.id === selectedProfId);
   
+  // Sincronizar Scripts salvos
+  useEffect(() => {
+    if (activeSubTab === 'individual') {
+      const saved = (data.aiFeedbacks || []).find(f => 
+        f.ano === year && f.mes === selectedMonth && f.profissionalId === selectedProfId && f.tipo === 'individual'
+      );
+      setAiScript(saved?.conteudo || '');
+    } else {
+      const saved = (data.aiFeedbacks || []).find(f => 
+        f.ano === year && f.mes === selectedMonth && f.tipo === 'geral'
+      );
+      setGeneralAiScript(saved?.conteudo || '');
+    }
+  }, [activeSubTab, selectedProfId, selectedMonth, year, data.aiFeedbacks]);
+
   const notes = useMemo(() => {
     return (data.meetingNotes || []).filter(n => 
       n.profissionalId === selectedProfId && n.ano === year
@@ -60,7 +76,7 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
 
     const profissionaisStats = data.profissionais.filter(p => p.ativo !== false).map(prof => {
       const pProd = producaoAno.filter(p => p.profissionalId === prof.id);
-      const ultimoMes = pProd.length > 0 ? Math.max(...pProd.map(p => p.mes)) : 0;
+      const ultimoMes = selectedMonth; // Forçar o mês selecionado
       const d = pProd.find(p => p.mes === ultimoMes);
       const dPrev = pProd.find(p => p.mes === ultimoMes - 1);
 
@@ -97,7 +113,7 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
     };
 
     return { profissionaisStats, rankingMes, rankingAno, statsGeral };
-  }, [data, year]);
+  }, [data, year, selectedMonth]);
 
   const performance = useMemo(() => {
     if (!selectedProfId) return null;
@@ -172,31 +188,31 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
     const notesText = notes.map(n => `- ${n.texto}`).join('\n');
     
     const prompt = `
-      Você é um Especialista em Gestão de Barbearias Psicanalista e Cristocêntrico.
-      Analise o desempenho atual de ${selectedProf?.nome} em ${performance?.mes}/${year} com base em dados REAIS.
+      Atue como um mentor de barbearias de alto nível, com formação em Psicanálise (comportamento humano), Gestão de clientes e equipe, Vendas e Experiência do cliente premium, com base bíblica.
 
-      DADOS DO PROFISSIONAL:
+      OBJETIVO: Gerar um feedback estratégico individual para ${selectedProf?.nome} em ${performance?.mes}/${year}.
+
+      DADOS REAIS DO PROFISSIONAL:
       - Produção Mensal: R$ ${performance?.prodMes.toLocaleString('pt-BR')} (Meta: R$ ${performance?.metaMes.toLocaleString('pt-BR')})
-      - Produção Anual Acumulada: R$ ${performance?.prodAno.toLocaleString('pt-BR')} (Meta: R$ ${performance?.metaAno.toLocaleString('pt-BR')})
+      - Produção Anual: R$ ${performance?.prodAno.toLocaleString('pt-BR')}
       - Ticket Médio: R$ ${performance?.ticketMedio.toFixed(2)}
       - Venda de Produtos: R$ ${performance?.vendasProdutosBruto.toLocaleString('pt-BR')}
-      - Atendimentos: ${performance?.atendimentosServico}
       - Crescimento vs Mês Anterior: ${performance?.crescimento.toFixed(1)}%
-      
-      NOTAS DE ACOMPANHAMENTO:
+      - Ranking no Mês: ${performanceData.rankingMes.findIndex(p => p.id === selectedProfId) + 1}º de ${performanceData.profissionaisStats.length}
+
+      ANOTAÇÕES DE ACOMPANHAMENTO (Contexto Principal):
       ${notesText || "Sem notas registradas."}
 
-      CONTEXTO DA EQUIPE:
-      - Ranking no Mês: ${performanceData.rankingMes.findIndex(p => p.id === selectedProfId) + 1}º de ${performanceData.profissionaisStats.length}
-      - Ranking no Ano: ${performanceData.rankingAno.findIndex(p => p.id === selectedProfId) + 1}º de ${performanceData.profissionaisStats.length}
+      ESTILO DA RESPOSTA: Simples, Direto, Cirúrgico, Sem enrolação, Com autoridade.
 
-      Gere um relatório estruturado com:
-      1. DIAGNÓSTICO DO PROFISSIONAL: Situação do mês e do ano, destaques e onde está falhando (use os números acima).
-      2. ANÁLISE COMPORTAMENTAL E TÉCNICA: Baseada nas notas e no crescimento.
-      3. SUGESTÕES PRÁTICAS: O que ele deve fazer amanhã para melhorar o ticket e bater a meta.
-      4. TEXTO PRONTO PARA REUNIÃO: Um roteiro de feedback motivador, firme e cristocêntrico.
+      ESTRUTURA OBRIGATÓRIA:
+      1. COMO DEVERÍAMOS SER: Descreva o padrão ideal premium de atendimento, postura e mentalidade.
+      2. COMO ESTAMOS SENDO: Baseado nos dados e notas, analise o comportamento, falhas e pontos positivos.
+      3. CONTRASTE (VERDADE DIRETA): Mostre claramente onde ele está errando ou desalinhado.
+      4. DIREÇÃO PRÁTICA: Passos claros do que ele deve ajustar imediatamente.
+      5. BASE BÍBLICA: Traga um princípio bíblico aplicado diretamente à realidade dele.
 
-      REGRAS: Nunca invente números. Use os dados reais. Se o profissional estiver acima da meta, parabenize com foco em não estagnar.
+      REGRAS: Use apenas dados reais. Fale como mentor experiente.
     `;
 
     try {
@@ -204,7 +220,25 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
         model: "gemini-3-flash-preview",
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
       });
-      setAiScript(response.text || "Erro ao processar feedback.");
+      const generatedFeedback = response.text || "Erro ao processar feedback.";
+      setAiScript(generatedFeedback);
+
+      // Salvar feedback
+      const feedback: AIFeedback = {
+        id: `${year}-${selectedMonth}-${selectedProfId}`,
+        ano: year,
+        mes: selectedMonth,
+        profissionalId: selectedProfId,
+        conteudo: generatedFeedback,
+        timestamp: new Date().toISOString(),
+        tipo: 'individual'
+      };
+      
+      setData(prev => ({
+        ...prev,
+        aiFeedbacks: [...(prev.aiFeedbacks || []).filter(f => f.id !== feedback.id), feedback]
+      }), { type: 'ai_feedback', payload: feedback });
+
     } catch (error) {
       console.error("Erro na IA:", error);
       setAiScript(`Erro ao gerar análise: ${error instanceof Error ? error.message : 'Falha na comunicação com a IA.'}`);
@@ -240,29 +274,32 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
     }).filter(Boolean).join('\n\n');
 
     const prompt = `
-      Você é um Master Coach de Barbearias Psicanalista e Cristocêntrico.
-      Analise o ano de ${year} da barbearia com base em dados REAIS.
+      Atue como um mentor de barbearias de alto nível, com formação em Psicanálise (comportamento humano), Gestão de clientes e equipe, Vendas e Experiência do cliente premium, com base bíblica.
 
-      DADOS GERAIS DA LOJA:
+      OBJETIVO: Gerar um feedback estratégico da barbearia para a REUNIÃO GERAL de ${year}.
+
+      DADOS GERAIS DA UNIDADE:
       - Faturamento Total (Ano): R$ ${performanceData.statsGeral.faturamentoTotalAno.toLocaleString('pt-BR')}
-      - Produção Equipe (Mês Atual): R$ ${performanceData.statsGeral.producaoMesTotal.toLocaleString('pt-BR')}
-      - Assinaturas (Acumulado): R$ ${performanceData.statsGeral.assinaturasTotal.toLocaleString('pt-BR')}
+      - Produção Equipe (Mês): R$ ${performanceData.statsGeral.producaoMesTotal.toLocaleString('pt-BR')}
+      - Assinaturas: R$ ${performanceData.statsGeral.assinaturasTotal.toLocaleString('pt-BR')}
       - Consumo Geladeira: R$ ${performanceData.statsGeral.geladeiraTotal.toLocaleString('pt-BR')}
       
-      EQUIPE PERFORMANCE (MÊS ATUAL):
+      RANKING PERFORMANCE:
       ${performanceData.rankingMes.map((p, i) => `${i + 1}º ${p.nome}: R$ ${p.prodMes.toLocaleString('pt-BR')} (Meta: R$ ${p.metaMes.toLocaleString('pt-BR')})`).join('\n')}
 
-      NOTAS DA EQUIPE:
-      ${notesSummary}
+      ANOTAÇÕES DOS PROFISSIONAIS (Contexto Principal):
+      ${notesSummary || "Sem notas registradas."}
 
-      Gere um relatório estruturado para a REUNIÃO GERAL:
-      1. DIAGNÓSTICO GERAL DA BARBEARIA: Situação do mês e do ano, análise financeira rápida.
-      2. QUEM ESTÁ SE DESTACANDO E QUEM ESTÁ ABAIXO DA META: Cite nomes e números reais do ranking.
-      3. PONTOS FORTES E PONTOS DE ATENÇÃO: Baseados nas notas e faturamento.
-      4. SUGESTÕES PRÁTICAS PARA O PRÓXIMO MÊS: Ações concretas para a equipe.
-      5. TEXTO PRONTO PARA REUNIÃO: Discurso profissional, firme e inspirador para o time todo.
+      ESTILO DA RESPOSTA: Simples, Direto, Cirúrgico, Sem enrolação, Com autoridade.
 
-      REGRAS: Use apenas os números reais fornecidos. Se houver assinaturas ou geladeira, inclua na análise de receita extra.
+      ESTRUTURA OBRIGATÓRIA:
+      1. COMO DEVERÍAMOS SER: Padrão ideal premium de atendimento e mentalidade de equipe.
+      2. COMO ESTAMOS SENDO: Baseado nos dados e notas, analise o comportamento coletivo e falhas.
+      3. CONTRASTE (VERDADE DIRETA): O que está impedindo o crescimento real da barbearia.
+      4. DIREÇÃO PRÁTICA: O que ajustar imediatamente na gestão e o que cobrar da equipe.
+      5. BASE BÍBLICA: Princípio bíblico aplicado diretamente à situação da barbearia.
+
+      REGRAS: Use apenas dados reais. Fale como mentor experiente.
     `;
 
     try {
@@ -270,7 +307,24 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
         model: "gemini-3-flash-preview",
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
       });
-      setGeneralAiScript(response.text || "Erro ao gerar pauta geral.");
+      const generatedFeedback = response.text || "Erro ao gerar pauta geral.";
+      setGeneralAiScript(generatedFeedback);
+
+      // Salvar feedback
+      const feedback: AIFeedback = {
+        id: `${year}-${selectedMonth}-geral`,
+        ano: year,
+        mes: selectedMonth,
+        conteudo: generatedFeedback,
+        timestamp: new Date().toISOString(),
+        tipo: 'geral'
+      };
+      
+      setData(prev => ({
+        ...prev,
+        aiFeedbacks: [...(prev.aiFeedbacks || []).filter(f => f.id !== feedback.id), feedback]
+      }), { type: 'ai_feedback', payload: feedback });
+
     } catch (error) {
       console.error("Erro na IA:", error);
       setGeneralAiScript(`Erro ao gerar análise coletiva: ${error instanceof Error ? error.message : 'Falha na comunicação com a IA.'}`);
@@ -282,12 +336,26 @@ const Meetings: React.FC<MeetingsProps> = ({ data, setData, year }) => {
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 duration-500 pb-32">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-black text-slate-800 tracking-tighter">Gestão de Reuniões {year}</h2>
-          <p className="text-sm text-slate-400 font-bold uppercase mt-1">Alinhamento estratégico e feedback</p>
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-3xl font-black text-slate-800 tracking-tighter">Gestão de Reuniões {year}</h2>
+            <p className="text-sm text-slate-400 font-bold uppercase mt-1">Alinhamento estratégico e feedback</p>
+          </div>
+
+          <div className="flex gap-2 bg-slate-100 p-1.5 rounded-[20px] w-fit">
+            {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((m, idx) => (
+              <button
+                key={m}
+                onClick={() => setSelectedMonth(idx + 1)}
+                className={`w-10 h-10 rounded-[14px] text-[10px] font-black uppercase transition-all flex items-center justify-center ${selectedMonth === idx + 1 ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
         </div>
         
-        <div className="flex bg-slate-100 p-1.5 rounded-[20px] self-start md:self-auto">
+        <div className="flex bg-slate-100 p-1.5 rounded-[20px] self-start md:self-auto h-fit">
           <button 
             onClick={() => setActiveSubTab('individual')}
             className={`px-6 py-2.5 rounded-[16px] text-[10px] font-black uppercase transition-all flex items-center gap-2 ${activeSubTab === 'individual' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
